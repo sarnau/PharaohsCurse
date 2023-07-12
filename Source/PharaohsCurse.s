@@ -39,7 +39,7 @@ AUDC_VOLUME_ONLY = $10
 ; ---------------------------------------------------------------------------
 
 .struct LEVEL_STRUCT
-					  .res 40 * 12 ; level data as TILE, which are font characters
+					  .res 40 * 12 ; level data as TILE, which are font characters (160*192 pixel)
 	ELEVATOR_TOP      .byte
 	ELEVATOR_BOTTOM   .byte ; X position of the top of the moving sidewalk
 	ELEVATOR_X        .byte ; Y position of the top of the moving sidewalk
@@ -62,22 +62,22 @@ AUDC_VOLUME_ONLY = $10
 ; ---------------------------------------------------------------------------
 
 .enum FONT_1C00
-	DIGIT_0 = 0
-	DIGIT_1 = 1
-	DIGIT_2 = 2
-	DIGIT_3 = 3
-	DIGIT_4 = 4
-	DIGIT_5 = 5
-	DIGIT_6 = 6
-	DIGIT_7 = 7
-	DIGIT_8 = 8
-	DIGIT_9 = 9
-	CROWN = $A
-	PLAYER = $B
-	SKULL = $C
-	TREASURE___ = $D
-	TREASURE__X = $E
-	TREASURE_X_ = $F
+	DIGIT_0     = $00
+	DIGIT_1     = $01
+	DIGIT_2     = $02
+	DIGIT_3     = $03
+	DIGIT_4     = $04
+	DIGIT_5     = $05
+	DIGIT_6     = $06
+	DIGIT_7     = $07
+	DIGIT_8     = $08
+	DIGIT_9     = $09
+	CROWN       = $0A
+	PLAYER      = $0B
+	SKULL       = $0C
+	TREASURE___ = $0D
+	TREASURE__X = $0E
+	TREASURE_X_ = $0F
 	TREASURE_XX = $10
 	GAME_OVER_1 = $11
 	GAME_OVER_2 = $12
@@ -86,65 +86,65 @@ AUDC_VOLUME_ONLY = $10
 	GAME_OVER_5 = $15
 	GAME_OVER_6 = $16
 	GAME_OVER_7 = $17
-	V_anim_1 = $18
-	V_anim_2 = $19
-	V_anim_3 = $1A
-	V_anim_4 = $1B
-	V_anim_5 = $1C
+	V_anim_1    = $18
+	V_anim_2    = $19
+	V_anim_3    = $1A
+	V_anim_4    = $1B
+	V_anim_5    = $1C
 	ARROW_RIGHT = $1D
-	ARROW_LEFT = $1E
-	ALT_CROWN = $1F
+	ARROW_LEFT  = $1E
+	ALT_CROWN   = $1F
 
-	COLOR_1 = $40
-	COLOR_2 = $80
-	COLOR_3 = $C0
+	COLOR_1     = $40
+	COLOR_2     = $80
+	COLOR_3     = $C0
 .endenum
 
 ; ---------------------------------------------------------------------------
 
 .enum LEVEL_EXIT
-	NO = 0
-	LEFT = 1
-	RIGHT = 2
-	TOP = 3
+	NO     = 0
+	LEFT   = 1
+	RIGHT  = 2
+	TOP    = 3
 	BOTTOM = 4
 .endenum
 
 ; ---------------------------------------------------------------------------
 
 .enum JOYSTICK
-	J1_UP = 1
-	J1_DOWN = 2
-	J1_LEFT = 4
-	J1_RIGHT = 8
-	J2_UP = $10
-	J2_DOWN = $20
-	J2_LEFT = $40
+	J1_UP    = $01
+	J1_DOWN  = $02
+	J1_LEFT  = $04
+	J1_RIGHT = $08
+	J2_UP    = $10
+	J2_DOWN  = $20
+	J2_LEFT  = $40
 	J2_RIGHT = $80
 .endenum
 
 ; ---------------------------------------------------------------------------
 
 .enum DIRECTION
-	NONE = 0
+	NONE  = 0
 	CLIMB = 1
-	LEFT = 2
+	LEFT  = 2
 	RIGHT = 3
 .endenum
 
 ; ---------------------------------------------------------------------------
 
 .enum ROOM_NUMBER
-	R0 = 0
-	R1 = 1
-	R2 = 2
-	R3 = 3
-	R4 = 4
-	R5 = 5
-	R6 = 6
-	R7 = 7
-	R8 = 8
-	R9 = 9
+	R0  = 0
+	R1  = 1
+	R2  = 2
+	R3  = 3
+	R4  = 4
+	R5  = 5
+	R6  = 6
+	R7  = 7
+	R8  = 8
+	R9  = 9
 	R10 = 10
 	R11 = 11
 	R12 = 12
@@ -157,12 +157,12 @@ AUDC_VOLUME_ONLY = $10
 ; ---------------------------------------------------------------------------
 
 .enum PM_OBJECT
-	PLAYER = 0
-	PHARAOH = 1
-	MUMMY = 2
+	PLAYER         = 0
+	PHARAOH        = 1
+	MUMMY          = 2
 	WINGED_AVENGER = 3
-	COUNT = 4
-	ILLEGAL = $FF
+	COUNT          = 4
+	ILLEGAL        = $FF
 .endenum
 
 ; ---------------------------------------------------------------------------
@@ -310,42 +310,42 @@ AUDC_VOLUME_ONLY = $10
 ; ---------------------------------------------------------------------------
 
 .enum PLAYER_STATE
-	ONGOING = 0
-	WON_GAME = $FA
-	INIT = $FB
+	ONGOING   = 0
+	WON_GAME  = $FA
+	INIT      = $FB
 	GAME_LOST = $FF
 .endenum
 
 ; ---------------------------------------------------------------------------
 
 .enum SOUND_EFFECT
-	LOST_LIFE = 0
-	KILLED_PHARAO = 1
-	KILLED_MUMMY = 2
+	LOST_LIFE           = 0
+	KILLED_PHARAO       = 1
+	KILLED_MUMMY        = 2
 	WINGED_AVENGER_SHOT = 3
-	TREASURE_COLLECTED = 4
-	KEY_COLLECTED = 5
-	OPEN_GATE = 6
-	GAME_END = 7
+	TREASURE_COLLECTED  = 4
+	KEY_COLLECTED       = 5
+	OPEN_GATE           = 6
+	GAME_END            = 7
 .endenum
 
 ; ---------------------------------------------------------------------------
 
 .enum ELEVATOR_STATE
-	START = 0
+	START   = 0
 	RESTORE = 1
 	RUNNING = 2
-	OFF = $FF
+	OFF     = $FF
 .endenum
 
 ; ---------------------------------------------------------------------------
 
 .enum PM_IMAGE_OFFSET
-	STANDING = 0
-	CLIMBING = $10
-	RUN_LEFT_0 = $20
-	RUN_LEFT_1 = $30
-	RUN_LEFT_2 = $40
+	STANDING    = $00
+	CLIMBING    = $10
+	RUN_LEFT_0  = $20
+	RUN_LEFT_1  = $30
+	RUN_LEFT_2  = $40
 	RUN_RIGHT_0 = $50
 	RUN_RIGHT_1 = $60
 	RUN_RIGHT_2 = $70
@@ -354,19 +354,19 @@ AUDC_VOLUME_ONLY = $10
 ; ---------------------------------------------------------------------------
 
 .enum COLLISION_PLAYER
-	PLAYER_A = 1
-	PLAYER_B = 2
-	PHARAOH = 4
-	MUMMY = 8
+	PLAYER_A = $01
+	PLAYER_B = $02
+	PHARAOH  = $04
+	MUMMY    = $08
 .endenum
 
 ; ---------------------------------------------------------------------------
 
 .enum COLLISION_PLAYFIELD
-	C0_FLOOR = 1                  ; Floor color
-	C1_WALL = 2                   ; Wall color
-	C2_DOOR_ACCENT = 4            ; Wall accent color,  doors
-	C3_TRAPS_KEYS_TREASURE = 8    ; used for Traps, Keys and Treasures – flickering
+	C0_FLOOR               = $01 ; Floor color
+	C1_WALL                = $02 ; Wall color
+	C2_DOOR_ACCENT         = $04 ; Wall accent color,  doors
+	C3_TRAPS_KEYS_TREASURE = $08 ; used for Traps, Keys and Treasures – flickering
 .endenum
 
 
