@@ -39,6 +39,7 @@ AUDC_VOLUME_ONLY = $10
 ; ---------------------------------------------------------------------------
 
 .struct LEVEL_STRUCT
+					  .res 40 * 12 ; level data as TILE, which are font characters
 	ELEVATOR_TOP      .byte
 	ELEVATOR_BOTTOM   .byte ; X position of the top of the moving sidewalk
 	ELEVATOR_X        .byte ; Y position of the top of the moving sidewalk
@@ -53,8 +54,10 @@ AUDC_VOLUME_ONLY = $10
 	color0            .byte
 	color1            .byte
 	color2            .byte
+					  .res 2
+	                  .res 8*2 ; 2 characters for the custom look of the treasure of the level
 .endstruct
-.assert .sizeof(LEVEL_STRUCT)=14,error
+.assert .sizeof(LEVEL_STRUCT)=512,error
 
 ; ---------------------------------------------------------------------------
 
