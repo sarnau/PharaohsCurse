@@ -390,7 +390,7 @@ vTEMP2:                     .res 1
 vTEMP3:                     .res 1
 ELEVATOR_PTR:               .res 2
                             .res 5
-MULT_40_TMP:                .res 2
+MULT_TMP:                   .res 2
 pDEST_PTR:                  .res 2
 sSRC_PTR:                   .res 2
                             .res 4
@@ -571,7 +571,7 @@ PROT_LOOP:      JSR     DSKINV          ; DISK INTERFACE
                 LDY     #15
 :               LDA     FONT_KEY,Y
                 STA     save_FONT_1800_5C_KEY,Y
-                LDA     #0
+                LDA     #$00
                 STA     save_FONT_1800_5B_GATE,Y
                 STA     vTrasuresCollected,Y
                 LDA     #FONT_1C00::TREASURE___
@@ -1099,7 +1099,7 @@ _is_the_player:
                 LDA     #7
                 STA     vGateOpenPosition
                 LDY     CURRENT_ROOM
-                LDA     #0
+                LDA     #$00
                 STA     save_FONT_1800_5B_GATE,Y
 
                 LDA     #$FF
@@ -1772,28 +1772,28 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
                 CMP     #42
                 BCS     :+
                 LDY     #LEVEL_EXIT::LEFT
-                BPL     @exit_check_done
+                BPL     @exit_check_done	; Branch always
 
 :               CMP     #207
                 BCC     :+
                 LDY     #LEVEL_EXIT::RIGHT
-                BPL     @exit_check_done
+                BPL     @exit_check_done	; Branch always
 
 :               LDA     PM_YPOS,X
                 CMP     #23
                 BCS     :+
                 LDY     #LEVEL_EXIT::TOP
-                BPL     @exit_check_done
+                BPL     @exit_check_done	; Branch always
 
 :               CMP     #228
                 BCC     @exit_check_done
                 LDY     #LEVEL_EXIT::BOTTOM
 
 @exit_check_done:
-                CPY     #LEVEL_EXIT::NO
-                BNE     @level_exit
+                CPY     #LEVEL_EXIT::NO		; did the player exit the level?
+                BNE     @level_exit			; yes =>
                 RTS
-; ---------------------------------------------------------------------------
+
 
 @level_exit:    TYA
                 STA     level_exit_direction,X
@@ -1877,39 +1877,39 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
                 BPL     @loopTreas
 
                 LDY     level_exit_direction
-                LDA     #DIRECTION::NONE
+                LDA     #0
                 BIT     vWingedAvenger_Attach_Flag
                 BMI     :+
                 DEC     vWingedAvenger_Attach_Flag
                 BMI     :+
                 LDA     ENTRY_START_XPOS,Y
-:               STA     PM_XPOS+3
+:               STA     PM_XPOS+3		; X-Position of the Winged Avenger
 
                 LDA     ENTRY_START_YPOS,Y
-                STA     PM_YPOS
-                STA     PM_YPOS+3
+                STA     PM_YPOS			; X-Position of plater hold by the Winged Avenger
+                STA     PM_YPOS+3		; Y-Position of the Winged Avenger
                 LDA     ENTRY_START_XPOS,Y
-                STA     PM_XPOS
+                STA     PM_XPOS			; Y-Position of plater hold by the Winged Avenger
 
                 STX     vTEMP1
                 LDX     CURRENT_ROOM
                 LDY     #7
 :               LDA     save_FONT_1800_5B_GATE,X
-                STA     FONT_GATE,Y
+                STA     FONT_GATE,Y		; fully open the gate by erasing it
                 DEY
                 BPL     :-
                 LDX     vTEMP1
 
                 LDY     #15
 :               LDA     save_FONT_1800_5C_KEY,Y
-                STA     FONT_KEY,Y
+                STA     FONT_KEY,Y		; restore the key
                 DEY
                 BPL     :-
 
                 JSR     CLEAR_ALL_PM_GRAPHICS
 
                 LDA     #8
-                STA     SHOT_COUNTER+1
+                STA     SHOT_COUNTER+1	; delay for pharaoh and mummy bullets
                 STA     SHOT_COUNTER+2
 
                 ; reset the elevator state
@@ -1924,22 +1924,19 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
 
                 LDA     vELEVATOR_X
                 CMP     #20
-                BCS     @loc_EB6
-
-@loc_EAE:       LDA     #192
+                BCS     @hasElevator
+@noElevator:    LDA     #192
                 STA     vELEVATOR_STATE
                 STA     ELEVATOR_PTR+1  ; Ptr to the 2x2 character position of the elevator
                 RTS
-; ---------------------------------------------------------------------------
-
-@loc_EB6:       LDA     #0
+@hasElevator:   LDA     #0
                 STA     ELEVATOR_PTR+1  ; Ptr to the 2x2 character position of the elevator
                 STA     vELEVATOR_Y
                 LDA     vELEVATOR_BOTTOM
                 SEC
                 SBC     #34
                 CMP     #192
-                BCS     @loc_EAE        ; This seems never happen with the levels!
+                BCS     @noElevator     ; This seems never happen with the levels!
 
                 AND     #$F0            ; yOffset = ((LEVEL_Y_BOTTOM - 34) >> 4) * 40
                 LSR     A
@@ -1981,28 +1978,27 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
 .proc DO_BULLET
                 LDA     BULLET_MAX_DISTANCE,X
                 BMI     :+
-                JMP     @DO_BULLET_move_bullet
+                JMP     @move_bullet
 
 :               LDA     CURRENT_ROOM,X
                 CMP     CURRENT_ROOM
-                BNE     @DO_BULLET_rts
+                BNE     @rts
                 LDA     DEATH_ANIM,X
-                BNE     @DO_BULLET_rts
+                BNE     @rts
                 CPX     #PM_OBJECT::PLAYER ; the actual player
                 BEQ     :+
                 LDA     SHOT_COUNTER,X
-                BNE     @DO_BULLET_rts
+                BNE     @rts
                 LDA     RANDOM
                 AND     #$F
-                BNE     @DO_BULLET_rts
-                BEQ     @DO_BULLET_trigger
+                BNE     @rts
+                BEQ     @trigger
 :
                 LDA     STRIG0          ; Joystick button 0 pressed?
-                BEQ     @DO_BULLET_trigger
-@DO_BULLET_rts: RTS
+                BEQ     @trigger
+@rts:           RTS
 
-@DO_BULLET_trigger:
-                INC     pDEST_PTR
+@trigger:       INC     pDEST_PTR
                 BNE     :+
                 INC     pDEST_PTR+1
 :
@@ -2029,13 +2025,13 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
 
                 LDA     vPLAYER_DIRECTION,X
                 CMP     #DIRECTION::LEFT
-                BNE     @loc_F5E
+                BNE     @noLeft
                 LDA     #256-4
-                BNE     @loc_F64
-@loc_F5E:       CMP     #DIRECTION::RIGHT
-                BNE     @DO_BULLET_rts
+                BNE     @shootLeft
+@noLeft:        CMP     #DIRECTION::RIGHT
+                BNE     @rts
                 LDA     #4
-@loc_F64:       STA     BULLET_SPEED,X
+@shootLeft:     STA     BULLET_SPEED,X
 
                 LDA     #50
                 STA     BULLET_MAX_DISTANCE,X
@@ -2047,10 +2043,9 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
                 STA     BULLET_XPOS,X
                 LDA     PM_YPOS,X
                 STA     BULLET_YPOS,X
-                JMP     @DO_BULLET_bullet_on_screen
-; ---------------------------------------------------------------------------
+                JMP     @bullet_on_screen
 
-@DO_BULLET_move_bullet:
+@move_bullet:
                 LDA     BULLET_TILE_LSB,X
                 STA     pDEST_PTR
                 LDA     BULLET_TILE_MSB,X
@@ -2063,150 +2058,144 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
                 STX     vTEMP1
                 LDA     BULLET_MAX_DISTANCE,X
                 BNE     :+
-                JMP     @DO_BULLET_move_bullet_next
-; ---------------------------------------------------------------------------
-
-:               LDY     #PM_OBJECT::MUMMY
+                JMP     @move_bullet_next
+:
+                LDY     #PM_OBJECT::MUMMY
                 CPX     #PM_OBJECT::PLAYER ; the actual player
-                BEQ     @DO_BULLET_scan_target_loop
+                BEQ     @scan_target_loop
                 LDY     #PM_OBJECT::PLAYER ; the actual player
-
-@DO_BULLET_scan_target_loop:
+@scan_target_loop:
                 CPY     vTEMP1
-                BEQ     @DO_BULLET_scan_target_next
+                BEQ     @scan_target_next
                 LDA     CURRENT_ROOM
                 CMP     CURRENT_ROOM,Y
-                BEQ     @loc_FC0
-
-@DO_BULLET_scan_target_next:
+                BEQ     @inSameRoom
+@scan_target_next:
                 CPX     #PM_OBJECT::PLAYER ; the actual player
-                BNE     @DO_BULLET_move_bullet_next
+                BNE     @move_bullet_next
                 DEY
-                BNE     @DO_BULLET_scan_target_loop
-                BEQ     @DO_BULLET_move_bullet_next
+                BNE     @scan_target_loop
+                BEQ     @move_bullet_next	; Branch always
 
-@loc_FC0:       LDA     BULLET_XPOS,X
+@inSameRoom:    LDA     BULLET_XPOS,X
                 SEC
-                SBC     PM_XPOS,Y
+                SBC     PM_XPOS,Y			; X-Distance
                 CMP     #5
-                BCS     @DO_BULLET_scan_target_next
+                BCS     @scan_target_next
 
                 LDA     BULLET_YPOS,X
                 SEC
                 SBC     PM_YPOS,Y
                 BPL     :+
                 EOR     #$FF
-:               CMP     #7
-                BCS     @DO_BULLET_scan_target_next
-                LDA     DEATH_ANIM,Y
-                BNE     @DO_BULLET_scan_target_next
-
+:               CMP     #7					; Y-Distance
+                BCS     @scan_target_next
+                LDA     DEATH_ANIM,Y		; already dieing?
+                BNE     @scan_target_next
                 LDA     #32
                 STA     DEATH_ANIM,Y
-                CPY     #PM_OBJECT::PLAYER ; the actual player
-                BEQ     :+           ; Target was the player?
+
+                CPY     #PM_OBJECT::PLAYER ; target is the actual player?
+                BEQ     :+				   ; => yes
                 LDA     BULLET_MAX_DISTANCE,Y
-                BMI     :+           ; Target was the player?
+                BMI     :+
                 LDA     #0
                 STA     BULLET_MAX_DISTANCE,Y
 :
                 CPY     #PM_OBJECT::PLAYER ; Target was the player?
                 BNE     @add_y_times_5_to_score ; => no, the player hit the pharao or mummy
+
                 DEC     player_lives
                 JSR     SOUND_PLAY_on_CH4
                 LDA     #$FF
                 STA     vKeyCollectedWhenPositive
-                JMP     @DO_BULLET_remove_bullet_hit
-; ---------------------------------------------------------------------------
+                JMP     @remove_bullet_hit
 
 @add_y_times_5_to_score:
                 JSR     SOUND_PLAY_on_CH4
                 SED
-
 @loop:          LDA     #5
                 CLC
                 ADC     SCORE
                 STA     SCORE
                 BCC     :+
                 INC     SCORE+1
-:
-                DEY
+:               DEY
                 BPL     @loop
                 CLD
 
-@DO_BULLET_remove_bullet_hit:
+@remove_bullet_hit:
                 LDA     #$FF
                 STA     BULLET_MAX_DISTANCE,X
                 JSR     DRAW_TREASURES_LIVES
 
-@DO_BULLET_move_bullet_next:
+@move_bullet_next:
                 DEC     BULLET_MAX_DISTANCE,X
-                BMI     @DO_BULLET_remove_bullet
+                BMI     @remove_bullet
 
                 LDA     BULLET_XPOS,X
                 LDY     BULLET_SPEED,X
-                BMI     @loc_103A
+                BMI     @bulletLeft		; => bullet flies to the left
                 CLC
                 ADC     #4
                 STA     BULLET_XPOS,X
                 INC     pDEST_PTR
-                BNE     @loc_104B
+                BNE     @checkBulletPos
                 INC     pDEST_PTR+1
-                BNE     @loc_104B
+                BNE     @checkBulletPos	; Branch always =>
 
-@loc_103A:      SEC
+@bulletLeft:    SEC
                 SBC     #4
                 STA     BULLET_XPOS,X
                 LDA     pDEST_PTR
                 SEC
                 SBC     #1
                 STA     pDEST_PTR
-                BCS     @loc_104B
+                BCS     @checkBulletPos
                 DEC     pDEST_PTR+1
 
-@loc_104B:      LDA     BULLET_XPOS,X
+; Did the bullet left the screen?
+@checkBulletPos:LDA     BULLET_XPOS,X
                 CMP     #204
-                BCS     @DO_BULLET_remove_bullet
+                BCS     @remove_bullet
                 CMP     #44
-                BCS     @DO_BULLET_bullet_on_screen
-
-@DO_BULLET_remove_bullet:
-                LDA     #$FF
+                BCS     @bullet_on_screen
+@remove_bullet: LDA     #$FF
                 STA     BULLET_MAX_DISTANCE,X
                 RTS
-; ---------------------------------------------------------------------------
 
-@DO_BULLET_bullet_on_screen:
+@bullet_on_screen:
                 LDY     #0
-                STY     MULT_40_TMP+1
+                STY     MULT_TMP+1
                 LDA     (pDEST_PTR),Y
                 STA     vTEMP1
                 AND     #(~TILE::ACTION_FLAG) & $FF
                 CMP     #TILE::TRAP_0_left
-                BCC     @loc_1078
+                BCC     @validTile
                 CMP     #TILE::BULLET_0
-                BCS     @DO_BULLET_remove_bullet
+                BCS     @remove_bullet
                 SEC
                 SBC     #TILE::TRAP_0_left
                 LSR     A
                 TAY
-                LDA     TRAP_ANIM_PHASE,Y ; 'TRAP' is the original name
-                BPL     @DO_BULLET_remove_bullet
-@loc_1078:
+                LDA     TRAP_ANIM_PHASE,Y
+                BPL     @remove_bullet
+
+@validTile:
                 LDA     vTEMP1
                 STA     BULLET_SAVE_TILE,X
                 AND     #(~TILE::ACTION_FLAG) & $FF
                 ASL     A
-                ROL     MULT_40_TMP+1
+                ROL     MULT_TMP+1
                 ASL     A
-                ROL     MULT_40_TMP+1
+                ROL     MULT_TMP+1
                 ASL     A
-                ROL     MULT_40_TMP+1
-                STA     MULT_40_TMP
+                ROL     MULT_TMP+1
+                STA     MULT_TMP
                 LDA     #>FONT_BASE_1800
                 CLC
-                ADC     MULT_40_TMP+1
-                STA     MULT_40_TMP+1
+                ADC     MULT_TMP+1
+                STA     MULT_TMP+1
                 STX     vTEMP1
                 TXA
                 ASL     A
@@ -2216,19 +2205,19 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
                 ADC     #7
                 TAX
                 LDY     #7
-@loop2:         LDA     (MULT_40_TMP),Y ; load current bitmap from character
+@loop2:         LDA     (MULT_TMP),Y ; load current bitmap from character
                 CPY     SUBPIXEL_Y
                 BNE     @loopj          ; create bullet character
                 CMP     #%00000000      ; nothing in the bitmap?
                 BEQ     :+              ; correct => add the bullet
                 LDX     vTEMP1
-                BPL     @DO_BULLET_remove_bullet ; otherwise remove the bullet
+                BPL     @remove_bullet  ; otherwise remove the bullet
 :               ORA     #%00000100      ; add the bullet to the bitmap
 @loopj:         STA     FONT_BASE_1800_68_BULLET,X ; create bullet character
-
                 DEX
                 DEY
                 BPL     @loop2          ; load current bitmap from character
+
                 INY
                 LDA     vTEMP1
                 TAX
@@ -2687,10 +2676,10 @@ DLI_select_room:
                 .BYTE $FF,$FF,$FF       ; unused
 vAddRandomDeathNoiseFlag:.BYTE $FF
 level_exit_direction:.BYTE LEVEL_EXIT::NO,LEVEL_EXIT::NO,LEVEL_EXIT::NO
-SHOT_COUNTER:   .BYTE   0,$FF,$FF,$1F
+SHOT_COUNTER:   .BYTE $00,$FF,$FF,$1F
 SNDF1_NoteOffset:.BYTE 0
 SNDF1_NoteDelay:.BYTE 0
-vZeroOneToggle: .BYTE 0
+SND_ZeroOneToggle: .BYTE 0
 SNDF1_NoteIndex:.BYTE 1
 SHOT_SOUND_TIMER:.BYTE 0
 SHOT_PROBABILITY:.BYTE $10
@@ -2999,7 +2988,7 @@ FONT_BASE_TITLE:.BYTE  $00, $00, $00, $00, $00, $00, $00, $00; 0
                 LDA     SUBPIXEL_X
                 STA     vTEMP2
                 LDA     #0
-                STA     MULT_40_TMP+1
+                STA     MULT_TMP+1
                 DEC     vTEMP1
                 LDY     vTEMP1
                 LDA     (pDEST_PTR),Y
@@ -3013,18 +3002,18 @@ FONT_BASE_TITLE:.BYTE  $00, $00, $00, $00, $00, $00, $00, $00; 0
                 STA     ROPE_UNDER_PLAYER,X
 :
                 ASL     A
-                ROL     MULT_40_TMP+1
+                ROL     MULT_TMP+1
                 ASL     A
-                ROL     MULT_40_TMP+1
+                ROL     MULT_TMP+1
                 ASL     A
-                ROL     MULT_40_TMP+1
-                STA     MULT_40_TMP
-                LDA     MULT_40_TMP+1
+                ROL     MULT_TMP+1
+                STA     MULT_TMP
+                LDA     MULT_TMP+1
                 CLC
                 ADC     #>FONT_BASE_1800
-                STA     MULT_40_TMP+1
+                STA     MULT_TMP+1
                 LDY     SUBPIXEL_Y
-                LDA     (MULT_40_TMP),Y
+                LDA     (MULT_TMP),Y
                 ROL     A
 :               ROL     A
                 ROL     A
@@ -3571,12 +3560,12 @@ SND_MELODY:     .BYTE 106
                 ADC     SNDF1_NoteOffset
                 STA     SNDF1_NoteIndex
 
-                LDA     vZeroOneToggle
-                BNE     @loc_465A
+                LDA     SND_ZeroOneToggle
+                BNE     @noZero
                 LDA     #1
-                BNE     @loc_465C
-@loc_465A:      LDA     #0
-@loc_465C:      STA     vZeroOneToggle
+                BNE     @wasZero
+@noZero:        LDA     #0
+@wasZero:       STA     SND_ZeroOneToggle
                 CLC
                 ADC     SNDF1_NoteIndex
                 TAY
@@ -3630,13 +3619,13 @@ SND_MELODY:     .BYTE 106
 ; =============== S U B R O U T I N E =======================================
 
 .proc GAME_OVER
+                ; reset the elevator state
                 LDA     vELEVATOR_STATE
-                BMI     @game_over
+                BMI     :+
                 LDA     #ELEVATOR_STATE::RESTORE
                 STA     vELEVATOR_STATE
                 JSR     DO_ELEVATOR
-
-@game_over:
+:
                 LDA     #FONT_1C00::GAME_OVER_7
                 STA     vTEMP1
                 LDY     #6
@@ -3868,23 +3857,22 @@ SND_MELODY:     .BYTE 106
 .endproc
 
 ; ---------------------------------------------------------------------------
-ELEVATOR_TILES: .BYTE TILE::ELEVATOR_0|TILE::ACTION_FLAG; 0
+ELEVATOR_TILES: .BYTE TILE::ELEVATOR_0|TILE::ACTION_FLAG
+                .BYTE TILE::ELEVATOR_1|TILE::ACTION_FLAG
+                .BYTE TILE::ELEVATOR_2|TILE::ACTION_FLAG
+                .BYTE TILE::ELEVATOR_3|TILE::ACTION_FLAG
 
-                .BYTE TILE::ELEVATOR_1|TILE::ACTION_FLAG; 1
-                .BYTE TILE::ELEVATOR_2|TILE::ACTION_FLAG; 2
-                .BYTE TILE::ELEVATOR_3|TILE::ACTION_FLAG; 3
-ELEVATOR_LEFT:  .BYTE %01000000         ; 0
+ELEVATOR_LEFT:  .BYTE %01000000
+                .BYTE %01010000
+                .BYTE %00000101
+                .BYTE %00000001
+                .BYTE %00000000
 
-                .BYTE %01010000         ; 1
-                .BYTE %00000101         ; 2
-                .BYTE %00000001         ; 3
-                .BYTE %00000000         ; 4
-ELEVATOR_RIGHT: .BYTE %00000001         ; 0
-
-                .BYTE %00000101         ; 1
-                .BYTE %01010000         ; 2
-                .BYTE %01000000         ; 3
-                .BYTE %00000000         ; 4
+ELEVATOR_RIGHT: .BYTE %00000001
+                .BYTE %00000101
+                .BYTE %01010000
+                .BYTE %01000000
+                .BYTE %00000000
 
 FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
                 .BYTE <FONT_TRAP_1
@@ -4067,13 +4055,14 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
                 PHA
                 LDA     vCollisionsPlayfield+1,X
                 AND     #COLLISION_PLAYFIELD::C3_TRAPS_KEYS_TREASURE ; used for Traps, Keys and Treasures – flickering
-                BEQ     @loc_4997
+                BEQ     @noColl
 
                 CPX     #PM_OBJECT::PLAYER ; the actual player
                 BNE     :+
-                LDY     #$FF
+
+                LDY     #$FF			   ; Loose key
                 STY     vKeyCollectedWhenPositive
-                DEC     player_lives
+                DEC     player_lives	   ; Loose life
                 JSR     DRAW_TREASURES_LIVES
 :
                 LDA     #32
@@ -4082,28 +4071,26 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
                 TAY
                 JSR     SOUND_PLAY_on_CH4
 
-@loc_4993:
-                PLA
+@trapsDone:     PLA
                 JMP     START::player_out_of_bounds
-; ---------------------------------------------------------------------------
 
-@loc_4997:      CPX     #PM_OBJECT::PLAYER ; the actual player
-                BNE     @loc_4993
+@noColl:        CPX     #PM_OBJECT::PLAYER ; the actual player
+                BNE     @trapsDone
+
                 PLA
                 SEC
                 SBC     #TILE::TRAP_0_left|TILE::ACTION_FLAG
                 LSR     A
                 TAY
                 LDA     TRAP_ANIM_DELAY,Y
-                BPL     @loc_49B5
-                LDA     TRAP_ANIM_PHASE,Y ; 'TRAP' is the original name
-                BPL     @loc_49B5
+                BPL     :+
+                LDA     TRAP_ANIM_PHASE,Y
+                BPL     :+
                 LDA     RANDOM
                 AND     #$F
                 ORA     #1
                 STA     TRAP_ANIM_DELAY,Y
-@loc_49B5:
-                JMP     START::player_out_of_bounds
+:               JMP     START::player_out_of_bounds
 .endproc
 
 ; =============== S U B R O U T I N E =======================================
@@ -4125,7 +4112,7 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
                 SED
                 LDA     SCORE
                 CLC
-                ADC     #$25 ; '%'
+                ADC     #$25
                 STA     SCORE
                 LDA     SCORE+1
                 ADC     #0
@@ -4155,14 +4142,13 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
 
 @no_y_change:
                 BIT     vWingedAvenger_Attach_Flag
-                BMI     @loc_4A15
+                BMI     @fly
                 LDA     #0
                 STA     vWingedAvenger_Hunt_Timer
                 LDA     #256-3
-                BMI     @fly_left
+                BMI     @fly_left		; Branch always
 
-@loc_4A15:
-                LDA     RANDOM
+@fly:           LDA     RANDOM
                 AND     #$1F
                 BNE     @no_x_change
                 LDA     RANDOM
@@ -4181,21 +4167,21 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
                 STA     PROT_PM_GRAPHICS_MSB_2
 
 @no_x_change:   BIT     vWingedAvenger_Hunt_Timer
-                BPL     @loc_4A55
+                BPL     @inTitle
                 LDA     CURRENT_ROOM
                 CMP     #ROOM_NUMBER::ENTRANCE_TITLE
-                BEQ     @loc_4A55
+                BEQ     @inTitle
 
                 LDA     PM_YPOS,X
                 ADC     #6
                 CMP     PM_YPOS
-                BCC     @loc_4A50
+                BCC     @yOffsetPos
                 LDA     #256-2
-                BMI     @loc_4A52
-@loc_4A50:      LDA     #2
-@loc_4A52:      STA     vBAT_YOffset
+                BMI     @yOffsetNeg
+@yOffsetPos:    LDA     #2
+@yOffsetNeg:    STA     vBAT_YOffset
 
-@loc_4A55:
+@inTitle:
                 LDA     vBAT_YOffset
                 CLC
                 ADC     PM_YPOS,X
@@ -4224,28 +4210,27 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
                 LDA     PLAYER_IMG_ANIM_PHASE,X ; Bat wing flap animation
                 CLC
                 ADC     PLAYER_IMG_ANIM_STEP,X
-                BPL     @loc_4A98
+                BPL     @underflow
                 LDA     #8
                 STA     PLAYER_IMG_ANIM_STEP,X
                 LDA     #(FONT_1C00::V_anim_1-FONT_1C00::V_anim_1)*8 ; Bat phase #0
-                BEQ     @loc_4AA3
+                BEQ     @overflow		; Branch always
 
-@loc_4A98:      CMP     #(FONT_1C00::V_anim_5-FONT_1C00::V_anim_1)*8+1
-                BCC     @loc_4AA3
+@underflow:     CMP     #(FONT_1C00::V_anim_5-FONT_1C00::V_anim_1)*8+1
+                BCC     @overflow
                 LDA     #256-8
                 STA     PLAYER_IMG_ANIM_STEP,X
                 LDA     #(FONT_1C00::V_anim_5-FONT_1C00::V_anim_1)*8 ; Bat phase #4
 
-@loc_4AA3:      STA     PLAYER_IMG_ANIM_PHASE,X
+@overflow:      STA     PLAYER_IMG_ANIM_PHASE,X
                 CLC
                 ADC     #7
                 TAX
                 LDA     #>PM_GRAPHICS_MISSLES
                 STA     pDEST_PTR+1
-                LDY     #15
 
-@create_bat_loop:
-                LDA     FONT_BASE_1C00_18_WINGED_AVENGER,X
+                LDY     #15
+@loop:          LDA     FONT_BASE_1C00_18_WINGED_AVENGER,X
                 BIT     vTEMP1
                 BMI     :+              ; PM2 and PM3 are defined by the character
                 ASL     A
@@ -4260,12 +4245,12 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
                 BCS     :+
                 ORA     #%00000001      ; ROW #8 and #9 add PM0 as COLOR1
 :
-                STA     (pDEST_PTR),Y
+                STA     (pDEST_PTR),Y	; double height
                 DEY
                 STA     (pDEST_PTR),Y
                 DEX
                 DEY
-                BPL     @create_bat_loop
+                BPL     @loop
                 RTS
 .endproc
 
@@ -4273,7 +4258,7 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
 
 .proc DO_CROWN_ARROW
                 LDA     CROWN_ARROW_DURATION,X
-                BPL     @loc_4B1E
+                BPL     @checkTimer
                 LDA     RANDOM
                 AND     #$3F ; '?'
                 BEQ     :+
@@ -4309,8 +4294,7 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
                 LDA     ENTRY_START_XPOS,Y
                 STA     CROWN_ARROW_XPOS,X
 
-@loc_4B1E:
-                DEC     CROWN_ARROW_COUNTER,X
+@checkTimer:    DEC     CROWN_ARROW_COUNTER,X
                 BPL     :+
                 LDA     #5
                 STA     CROWN_ARROW_COUNTER,X
@@ -4323,40 +4307,40 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
 
                 LDA     CROWN_ARROW_DURATION,X
                 CMP     #48
-                BCS     @loc_4B45
+                BCS     @moreWait
                 STA     AUDF4
                 LDA     #AUDC_POLYS_4|2
                 STA     AUDC4
-                BMI     @loc_4B47
+                BMI     @durationDone	; Branch always
 
-@loc_4B45:      LDA     #0
-@loc_4B47:      STA     CROWN_ARROW_FLAG
-                BMI     @loc_4B53
+@moreWait:      LDA     #0
+@durationDone:  STA     CROWN_ARROW_FLAG
+                BMI     @flickerGold
                 LDA     RANDOM
                 ORA     #(HUE_GREY<<4)|3
-                BNE     @loc_4B55
-@loc_4B53:      LDA     #(HUE_GOLDORANGE<<4)|12
-@loc_4B55:      STA     PCOLR1,X        ; P1 COLOR
+                BNE     @flickerNot		; Branch always
+@flickerGold:   LDA     #(HUE_GOLDORANGE<<4)|12
+@flickerNot:    STA     PCOLR1,X        ; P1 COLOR
 
                 LDA     vCollisionsPlayer+1,X
-                BEQ     @loc_4B90
+                BEQ     @noHitWithPlayer
                 BIT     CROWN_ARROW_FLAG
                 BPL     @crown_arrow_done
                 AND     #3
-                BEQ     @loc_4B90
+                BEQ     @noHitWithPlayer
 
                 LDA     CROWN_ARROW_type,X
-                BNE     @loc_4B72
+                BNE     @isArrow
                 INC     player_lives    ; Crown adds a life
                 LDY     #SOUND_EFFECT::TREASURE_COLLECTED
-                BNE     @loc_4B7C
+                BNE     @treasureCol	; Branch always
 
-@loc_4B72:      LDY     #SOUND_EFFECT::LOST_LIFE
+@isArrow:       LDY     #SOUND_EFFECT::LOST_LIFE
                 DEC     player_lives    ; Arrow removes a life
                 LDA     #32
                 STA     DEATH_ANIM
 
-@loc_4B7C:      JSR     SOUND_PLAY_on_CH4
+@treasureCol:   JSR     SOUND_PLAY_on_CH4
                 JSR     DRAW_TREASURES_LIVES
 
 @crown_arrow_done:
@@ -4368,7 +4352,9 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
                 RTS
 ; ---------------------------------------------------------------------------
 
-@loc_4B90:      LDA     CROWN_ARROW_XPOS,X
+@noHitWithPlayer:
+				; Move X-Position of the arrow
+                LDA     CROWN_ARROW_XPOS,X
                 BIT     CROWN_ARROW_FLAG
                 BPL     :+
                 LDY     CROWN_ARROW_type,X
@@ -4378,6 +4364,7 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
                 STA     CROWN_ARROW_XPOS,X
 :               STA     HPOSP1,X        ; Horizontal position of player 1
 
+				; Play sound for arrow
                 BIT     CROWN_ARROW_FLAG
                 BMI     :+
                 DEC     CROWN_ARROW_SOUND_DELAY,X
@@ -4398,15 +4385,14 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
                 STA     AUDC4
 :
                 BIT     CROWN_ARROW_FLAG
-                BMI     @loc_4BE1
+                BMI     @select
                 LDA     RANDOM
                 AND     #1
                 TAY                     ; 0 = Crown, 1 = Arrow
                 LDA     #0
-                BPL     @loc_4BF2
+                BPL     @newOne  		; Branch always
 
-@loc_4BE1:
-                LDA     CROWN_ARROW_type,X
+@select:        LDA     CROWN_ARROW_type,X
                 BEQ     :+              ; => crown
                 LDA     #<(FONT_BASE_1C00_ARROW_LEFT-FONT_BASE_1C00_ARROW_RIGHT)
                 LDY     ARROW_XOFFSET,X
@@ -4414,7 +4400,7 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
                 LDA     #<(FONT_BASE_1C00_ARROW_RIGHT-FONT_BASE_1C00_ARROW_RIGHT)
 :
                 LDY     CROWN_ARROW_type,X
-@loc_4BF2:      CLC
+@newOne:        CLC
                 ADC     CROWN_ARROW_GRAPHICS_LSB,Y
                 STA     sSRC_PTR
                 LDA     PM_GRAPHICS_MSB,X
