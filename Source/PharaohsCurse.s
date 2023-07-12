@@ -67,33 +67,33 @@ AUDC_VOLUME_ONLY = $10
     DIGIT_2     = $02
     DIGIT_3     = $03
     DIGIT_4     = $04
-    DIGIT_5     = $05
+    DIGIT_5     = $05	; Digits 0-9
     DIGIT_6     = $06
     DIGIT_7     = $07
     DIGIT_8     = $08
     DIGIT_9     = $09
-    CROWN       = $0A
-    PLAYER      = $0B
-    SKULL       = $0C
+    CROWN       = $0A	; Crown, which can be collected
+    PLAYER      = $0B	; Player in the status line
+    SKULL       = $0C	; unused
     TREASURE___ = $0D
-    TREASURE__X = $0E
+    TREASURE__X = $0E	; 0-2 Treasures (2 per character) for the status line
     TREASURE_X_ = $0F
     TREASURE_XX = $10
     GAME_OVER_1 = $11
     GAME_OVER_2 = $12
     GAME_OVER_3 = $13
-    GAME_OVER_4 = $14
+    GAME_OVER_4 = $14	; "GAME OVER" text as font for the status line
     GAME_OVER_5 = $15
     GAME_OVER_6 = $16
     GAME_OVER_7 = $17
-    V_anim_1    = $18
+    V_anim_1    = $18	; Winged Avenger images
     V_anim_2    = $19
     V_anim_3    = $1A
     V_anim_4    = $1B
     V_anim_5    = $1C
-    ARROW_RIGHT = $1D
-    ARROW_LEFT  = $1E
-    ALT_CROWN   = $1F
+    ARROW_RIGHT = $1D	; Arrow, which will shoot the player
+    ARROW_LEFT  = $1E	; Arrow, which will shoot the player
+    ALT_CROWN   = $1F	; unused
 
     COLOR_1     = $40
     COLOR_2     = $80
@@ -105,7 +105,7 @@ AUDC_VOLUME_ONLY = $10
 .enum LEVEL_EXIT
     NO     = 0
     LEFT   = 1
-    RIGHT  = 2
+    RIGHT  = 2	; which exit was chosen in the level
     TOP    = 3
     BOTTOM = 4
 .endenum
@@ -113,11 +113,12 @@ AUDC_VOLUME_ONLY = $10
 ; ---------------------------------------------------------------------------
 
 .enum JOYSTICK
-    J1_UP    = $01
+    J1_UP    = $01	; Joystick #1 directions
     J1_DOWN  = $02
     J1_LEFT  = $04
     J1_RIGHT = $08
-    J2_UP    = $10
+
+    J2_UP    = $10	; Joystick #2 is unused
     J2_DOWN  = $20
     J2_LEFT  = $40
     J2_RIGHT = $80
@@ -125,6 +126,7 @@ AUDC_VOLUME_ONLY = $10
 
 ; ---------------------------------------------------------------------------
 
+; In what kind of motion is the player
 .enum DIRECTION
     NONE  = 0
     CLIMB = 1
@@ -302,6 +304,7 @@ AUDC_VOLUME_ONLY = $10
 
 ; ---------------------------------------------------------------------------
 
+; PROTECTION: Patches for the code
 .enum OPCODE
     JMP = $4C
     ADC_abs_Y = $79
@@ -318,6 +321,7 @@ AUDC_VOLUME_ONLY = $10
 
 ; ---------------------------------------------------------------------------
 
+; The different sound effects
 .enum SOUND_EFFECT
     LOST_LIFE           = 0
     KILLED_PHARAO       = 1
@@ -4138,7 +4142,7 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
                 AND     #1
                 BNE     @move_up
                 LDA     #256-1
-@move_up:       STA     vBAT_YOffset
+@move_up:       STA     vAVEN_YOffset
 
 @no_y_change:
                 BIT     vWingedAvenger_Attach_Flag
@@ -4157,7 +4161,7 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
                 SBC     #2
                 BNE     @fly_left
                 LDA     #2
-@fly_left:      STA     vBAT_XOffset
+@fly_left:      STA     vAVEN_XOffset
 
 ; PROTECTION: check the checksum routine
                 LDY     START::PROT_CHECKSUM_C+1
@@ -4179,16 +4183,16 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
                 LDA     #256-2
                 BMI     @yOffsetNeg
 @yOffsetPos:    LDA     #2
-@yOffsetNeg:    STA     vBAT_YOffset
+@yOffsetNeg:    STA     vAVEN_YOffset
 
 @inTitle:
-                LDA     vBAT_YOffset
+                LDA     vAVEN_YOffset
                 CLC
                 ADC     PM_YPOS,X
                 STA     PM_YPOS,X
                 STA     pDEST_PTR
 
-                LDA     vBAT_XOffset
+                LDA     vAVEN_XOffset
                 STA     vTEMP1
                 CLC
                 ADC     PM_XPOS,X
@@ -4213,14 +4217,14 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
                 BPL     @underflow
                 LDA     #8
                 STA     PLAYER_IMG_ANIM_STEP,X
-                LDA     #(FONT_1C00::V_anim_1-FONT_1C00::V_anim_1)*8 ; Bat phase #0
+                LDA     #(FONT_1C00::V_anim_1-FONT_1C00::V_anim_1)*8 ; Avenger phase #0
                 BEQ     @overflow		; Branch always
 
 @underflow:     CMP     #(FONT_1C00::V_anim_5-FONT_1C00::V_anim_1)*8+1
                 BCC     @overflow
                 LDA     #256-8
                 STA     PLAYER_IMG_ANIM_STEP,X
-                LDA     #(FONT_1C00::V_anim_5-FONT_1C00::V_anim_1)*8 ; Bat phase #4
+                LDA     #(FONT_1C00::V_anim_5-FONT_1C00::V_anim_1)*8 ; Avenger phase #4
 
 @overflow:      STA     PLAYER_IMG_ANIM_PHASE,X
                 CLC
@@ -4443,8 +4447,8 @@ BULLET_SAVE_SUBPIXEL_Y:.BYTE   0,  0,  0,  0
 TRAP_ANIM_SPEED:.BYTE   0,  0,  0,  0
 FONT_ANIM_DELAY:.BYTE 0
 ROPE_ANIM_PHASE:.BYTE 0
-vBAT_XOffset:   .BYTE 0
-vBAT_YOffset:   .BYTE 0
+vAVEN_XOffset:  .BYTE 0
+vAVEN_YOffset:  .BYTE 0
 vPHARAOH_IN_WALL:.BYTE 0
 vPlayer_counter_c:.BYTE 0
 vPlayer_counter_a:.BYTE 0
