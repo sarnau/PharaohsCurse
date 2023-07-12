@@ -36,6 +36,8 @@ During the game play the checksum over the copy protection code is checked in a 
 
 I saved the whole memory from `$0480…$4DBD` into [Pharaohs_Curse.bin](Pharaohs_Curse.bin) to further analyze it. It uses standard Atari OS and no unexpected tricks for sound or graphics – just regular Atari Display List stuff.
 
-So I wrote [image_extract.py](image_extract.py) to display all the font and PM artwork as well as creating an image for all the 16 levels. They are aligned in a way, that leaving on one side leads you to the one next to it. The title screen is level 14, which can't be reached during normal gameplay. That level also uses a special font for the title games and the text display. The arrow in the level mark starting points when getting into the level from the 4 different directions. The red rectangles are the one possible elevator per level and white letters mark keys, treasures, traps and doors. They typically appear as double characters, so there are two letters per e.g. key.
+If you run the make script – after fixing the path for the CA65 assembler inside the script – you should find a new directory `Objects` with the file `object.prg`, which should be binary identical to `Pharaohs_Curse.bin`. That means everything works.
+
+I also wrote [image_extract.py](image_extract.py) to display all the font and PM artwork as well as creating an image for all the 16 levels. They are aligned in a way, that leaving on one side leads you to the one next to it. The title screen is level 14, which can't be reached during normal gameplay. That level also uses a special font for the title games and the text display. The arrow in the level mark starting points when getting into the level from the 4 different directions. The red rectangles are the one possible elevator per level and white letters mark keys, treasures, traps and doors. They typically appear as double characters, so there are two letters per e.g. key.
 
 ![The 16 game levels](levels.png)
