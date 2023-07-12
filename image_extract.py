@@ -241,10 +241,10 @@ if True:
 	drawFont(0x1800,0x00,0x7F,True)  # multi color - Font for characters in the rooms
 	drawFont(0x1C00,0x00,0x1F,False) # single color - Font for the top status bar
 	drawFont(0x1C00,0x20,0x3F,True)  # multi color
-	#drawFont(0x4000,0x00,0x3F,True)  # multi color - Font the the exit room with the game title
+	drawFont(0x4000,0x00,0x3F,True)  # multi color - Font the the exit room with the game title
 
 if True:
 	drawLevels(markActions=True)
 
-if False:
+if True:
 	drawPM(0x1100,0x00,0x3F,False)
