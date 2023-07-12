@@ -3,13 +3,17 @@
 I've never really wrote any code for the Atari 400/800 computers, so this is my first look into the hardware and software by using Pharaoh's Curse as a learning example. 6502 I knew via the C64, etc, but I knew almost nothing about the graphics and sound capabilities.
 
 Documented source code for Pharaoh's Curse for the Atari 400/800 computers.
-Requires the [CA65 assembler](https://cc65.github.io) to compile.
+Requires the [CA65 assembler](https://cc65.github.io) to compile. I am using a Macintosh, but it should work on other operating systems as well or with trivial changes.
+
 
 ## Files to start with
+
+I found them e.g. at [archive.org](https://archive.org/details/cssa8d_Pharaoh_s_Curse_The_1983_Synapse_Software_US)
 
 - [Pharaoh's Curse - manual](Pharaohs_Curse_Synapse_Software_manual.pdf)
 - [Pharaoh's Curse - protected ATX disk image](Pharaohs_Curse.atx)
 - [Pharaoh's Curse - patched unprotected ATR disk image](Pharaohs_Curse.atr)
+
 
 ## Extracting the game from the ATX disk image
 
