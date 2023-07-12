@@ -177,4 +177,5 @@ def loadATX(atxFilename,filename_out,renderFloppy=True):
 	#open(atxFilename + '.dsk','wb').write(dheader+ddata)
 	return True
 
-loadATX("Pharaoh's Curse, The (1983)(Synapse Software)(US).atx",'a.png',renderFloppy=False)
+loadATX("Pharaohs_Curse.atx",'disk_track_view.png',renderFloppy=False)
+#loadATX("Pharaohs_Curse.atx",'disk_floppy_view.png',renderFloppy=True)
