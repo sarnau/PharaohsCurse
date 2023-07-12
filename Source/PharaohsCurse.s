@@ -439,41 +439,37 @@ BOOT_CONTINUE:
                 STA     SDLSTL          ; SAVE DISPLAY LIST (LOW)
                 LDA     #>BOOT_DISPLIST
                 STA     SDLSTH          ; SAVE DISPLAY LIST (HIGH)
-                LDY     #21
+                LDY     #21             ; Length of the string printed to the screen
 
-                DEC     CART            ; Check for ROM Cartridge
+; Check for ROM cartridge by modifying RAM
+                DEC     CART
                 LDA     CART
-                BNE     _no_ROM_cart
+                BNE     @no_ROM_cart
                 LDA     #(HUE_ORANGE<<4)|4
                 STA     COLOR2          ; COLOR 2
 
-loc_4BA:
-                LDA     sREMOVE_CARTRIDGE,Y
+:               LDA     sREMOVE_CARTRIDGE,Y
                 SEC
                 SBC     #' '
                 STA     PRNBUF+8,Y      ; PRINTER BUFFER
                 DEY
-                BPL     loc_4BA
-_endless_loop_:
-                BMI     _endless_loop_
+                BPL     :-
+:               BMI     :-				; endless loop
 
-_no_ROM_cart:
-                LDA     sLOADING_PHARAOHS_CURSE,Y
+; no ROM cartridge detected, display loading text
+@no_ROM_cart:   LDA     sLOADING_PHARAOHS_CURSE,Y
                 SEC
                 SBC     #' '
                 STA     PRNBUF+8,Y      ; PRINTER BUFFER
                 DEY
-                BPL     _no_ROM_cart
+                BPL     @no_ROM_cart
                 LDA     #256-2
                 STA     RTCLOK+2        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
+:               BIT     RTCLOK+2        ; 1/30s delay
+                BMI     :-
 
-_small_delay_:
-                BIT     RTCLOK+2        ; 1/30s delay
-                BMI     _small_delay_
                 CLC
-
-BOOT_INIT:
-                RTS
+BOOT_INIT:      RTS
 .endproc
 
 ; =============== S U B R O U T I N E =======================================
@@ -498,9 +494,9 @@ PROT_LOOP:      JSR     DSKINV          ; DISK INTERFACE
                 CLC
                 ADC     #$80
                 STA     DBUFLO          ; DATA BUFFER POINTER (LOW)
-                BCC     loc_512         ; Next sector
+                BCC     :+              ; Next sector
                 INC     DBUFHI          ; DATA BUFFER POINTER (HIGH)
-loc_512:        INC     DAUX1           ; Next sector
+:		        INC     DAUX1           ; Next sector
                 DEC     a:vTEMP1
                 BNE     PROT_LOOP
 
@@ -532,24 +528,24 @@ loc_512:        INC     DAUX1           ; Next sector
                 LDA     #0
                 STA     RTCLOK+2        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
                 STA     DAUX2           ; COMMAND AUXILLARY BYTES 2
-
-PROT_loop:
-                JSR     DSKINV          ; DISK INTERFACE
+:               JSR     DSKINV          ; Read the same sector 10 times
                 DEC     a:vTEMP1
-                BNE     PROT_loop
+                BNE     :-
+
                 LDA     RTCLOK+2        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
                 CMP     #104            ; Was reading fast enough (<1.7s)? In a normal disk it should take 2s to read it 10x
                 BCC     PROT_CHECK_OK   ; => crash if too slow
-_crash_:
-                JMP     (RTCLOK)        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
+
+_crash_:        JMP     (RTCLOK)        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
+
 PROT_CHECK_OK:
                 LDA     #0
                 STA     SOUNDR          ; NOISY I/O FLAG. (ZERO IS QUIET)
 
-                LDA     #98             ; Sector 98 has to have a CRC error, otherwise crash!
+                LDA     #98             ; Sector 98 has to have a CRC error
                 STA     DAUX1           ; COMMAND AUXILLARY BYTES 1
                 JSR     DSKINV          ; DISK INTERFACE
-                BPL     _crash_
+                BPL     _crash_			; if there is no error, crash!
 
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse Loading and Protection done, now do initialization
@@ -569,8 +565,7 @@ PROT_CHECK_OK:
 
 .proc RESET_VARIABLES
                 LDY     #15
-_loop:
-                LDA     FONT_KEY,Y
+@loop:          LDA     FONT_KEY,Y
                 STA     save_FONT_1800_5C_KEY,Y
                 LDA     #0
                 STA     save_FONT_1800_5B_GATE,Y
@@ -578,12 +573,13 @@ _loop:
                 LDA     #FONT_1C00::TREASURE___
                 STA     STATUS_LINE,Y
                 DEY
-                BPL     _loop
+                BPL     @loop
                 RTS
 .endproc
 
 ; ---------------------------------------------------------------------------
 
+; The Display List during loading time
 BOOT_DISPLIST:  .BYTE DL_BLK8
                 .BYTE DL_BLK8
                 .BYTE DL_BLK8
@@ -592,32 +588,33 @@ BOOT_DISPLIST:  .BYTE DL_BLK8
                 .BYTE DL_JVB
                 .WORD BOOT_DISPLIST
 
+
 sLOADING_PHARAOHS_CURSE:
 				.BYTE "LOADING PHARAOHS CURSE"
 sREMOVE_CARTRIDGE:
 				.BYTE "   REMOVE CARTRIDGE   "
 
 s_CODE:         .BYTE " CODE:"
-sPASSWORD:      .BYTE "   "
-                .BYTE "SYN"
-                .BYTE "IST"
-                .BYTE "OPS"
+
+; Password for the levels, you need to enter SYNISTOPS for level 3
+sPASSWORD:      .BYTE "   " ; Level 0
+                .BYTE "SYN" ; Level 1
+                .BYTE "IST" ; Level 2
+                .BYTE "OPS" ; Level 3
                 .BYTE " "
 
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse Main Game
 ; ---------------------------------------------------------------------------
-
 .proc START
                 JSR     CLEAR_ALL_PM_GRAPHICS
                 JSR     RESET_CTIA_POKEY
+
                 LDX     #4
                 LDA     #FONT_1C00::TREASURE___
-
-loc_5C8:
-                STA     STATUS_LINE+$F,X
+:               STA     STATUS_LINE+$F,X
                 DEX
-                BPL     loc_5C8
+                BPL     :-
 
                 LDA     #<VBLANK_IRQ
                 STA     VVBLKD          ; DEFERRED VERTICAL BLANK NMI VECTOR
@@ -660,9 +657,7 @@ loc_5C8:
                 STA     SKCTL           ; Serial port control.
 
                 LDX     #PM_OBJECT::WINGED_AVENGER ; flying across the screens
-
-loc_621:
-                LDA     COLOR_TAB,X
+:               LDA     COLOR_TAB,X
                 STA     PCOLR0,X        ; P0 COLOR
 
                 LDA     #$FF
@@ -670,7 +665,7 @@ loc_621:
                 LDA     #0
                 STA     DEATH_ANIM,X
                 DEX
-                BPL     loc_621
+                BPL     :-
 
                 STA     vAudio_AUDC2_AUDC3
                 STA     vAudio_AUDF2_60Hz_countDown
@@ -685,21 +680,18 @@ loc_621:
                 STA     GPRIOR          ; GLOBAL PRIORITY CELL
 
                 LDY     #15
-
-loc_652:
-                LDA     #1
+:               LDA     #1
                 STA     vTrasuresCollected,Y
                 LDA     #%10001000
                 STA     save_FONT_1800_5B_GATE,Y
                 DEY
-                BPL     loc_652
+                BPL     :-
 
                 BIT     PLAYER_STATE
-                BMI     loc_667
+                BMI     :+
                 LDA     #PLAYER_STATE::GAME_LOST ; Player lost all lifes
                 STA     PLAYER_STATE
-
-loc_667:
+:
                 JSR     GAME_DONE
                 JSR     DRAW_TREASURES_LIVES
                 LDY     #PLAYER_STATE::ONGOING ; Game is still ongoing
@@ -714,36 +706,33 @@ loc_667:
 GAME_LOOP:
                 LDA     CONSOL          ; Used to see if one of the three yellow console buttons has been pressed (not the RESET button!
                 CMP     #7              ; OPTION or SELECT or START pressed?
-                BEQ     loc_695         ; => no
+                BEQ     @notPressed     ; => no
 
+				; reset the elevator state
                 LDA     vELEVATOR_STATE
-                BMI     loc_692
+                BMI     :+
                 LDA     #ELEVATOR_STATE::RESTORE
                 STA     vELEVATOR_STATE
                 JSR     DO_ELEVATOR
+:               JMP     START
 
-loc_692:
-                JMP     START
 ; ---------------------------------------------------------------------------
 
-loc_695:
+@notPressed:
                 BIT     GAME_LOOP_COUNTDOWN
-                BMI     loc_69D
+                BMI     :+
                 DEC     GAME_LOOP_COUNTDOWN
-
-loc_69D:
+:
                 LDA     CURRENT_ROOM
                 CMP     #ROOM_NUMBER::ENTRANCE_TITLE
-                BNE     loc_6AA
+                BNE     @wa_notTitle
                 LDA     #$FF
                 STA     vWingedAvenger_Attach_Flag
-                BMI     loc_6C7
-
-loc_6AA:
-                BIT     vWingedAvenger_Attach_Flag
-                BPL     loc_6C7
+                BMI     @wa_done
+@wa_notTitle:   BIT     vWingedAvenger_Attach_Flag
+                BPL     @wa_done
                 LDA     vCollisionsPlayer
-                BEQ     loc_6C7
+                BEQ     @wa_done
                 LDA     #2
                 STA     vWingedAvenger_Attach_Flag
                 LDA     #DIRECTION::NONE
@@ -751,47 +740,43 @@ loc_6AA:
                 STA     AUDC3
                 DEC     vKeyCollectedWhenPositive ; Loose keys when player got picked up
                 JSR     CLEAR_ALL_PM_GRAPHICS
+@wa_done:
 
-loc_6C7:
-                                        ; START+EF↑j ...
                 JSR     DO_ELEVATOR
 
                 LDA     CH              ; GLOBAL VARIABLE FOR KEYBOARD
-                CMP     #KEY_SPACE  ; Pause game
+                CMP     #KEY_SPACE      ; Pause game?
                 BNE     _no_pause_game_ ; => no
 
                 LDY     #7
                 LDA     #0
-
-loc_6D5:
-                STA     AUDC1,Y         ; stop sound
+:		        STA     AUDC1,Y         ; stop sound
                 DEY
                 DEY
-                BPL     loc_6D5         ; stop sound
+                BPL     :-              ; stop sound
 
-loc_6DC:
-                LDA     vJoystickInput  ; Wait for joystick
+:		        LDA     vJoystickInput  ; Wait for joystick
                 CMP     #%11111111
                 STA     GAME_LOOP_COUNTDOWN
-                BEQ     loc_6DC         ; Wait for joystick
+                BEQ     :-	            ; Wait for joystick
                 LDA     #KEY_NONE
                 STA     CH              ; GLOBAL VARIABLE FOR KEYBOARD
 
 _no_pause_game_:
+
+; if not moving, be a target for the winged avenger
                 LDA     vJoystickInput
                 CMP     #%11111111      ; Joystick action?
-                BNE     loc_6FA         ; => yes
+                BNE     @wa_noTarget    ; => yes
+
                 BIT     vWingedAvenger_Hunt_Timer
-                BMI     loc_6FE
+                BMI     @wa_isTarget
                 INC     vWingedAvenger_Hunt_Timer
-                BNE     loc_6FE
-
-loc_6FA:
-                LDA     #0
+                BNE     @wa_isTarget
+@wa_noTarget:   LDA     #0
                 STA     vWingedAvenger_Hunt_Timer
+@wa_isTarget:
 
-loc_6FE:
-                                        ; START+13A↑j
                 LDA     #$10
                 STA     SHOT_PROBABILITY
 
@@ -802,102 +787,93 @@ loc_6FE:
 
                 LDA     COLOR_TAB
                 BIT     vKeyCollectedWhenPositive
-                BMI     loc_71A         ; Color P0: Flicker player when holding key
+                BMI     :+              ; Color P0: Flicker player when holding key
                 LDA     RTCLOK+2        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
                 LSR     A
                 LSR     A
                 ORA     #(HUE_REDORANGE<<4)|8
-
-loc_71A:
-                STA     PCOLR0          ; Color P0: Flicker player when holding key
+:               STA     PCOLR0          ; Color P0: Flicker player when holding key
                 CMP     #(HUE_REDORANGE<<4)|8 ; ??? The n-flag is reset by the LDY
 
-                LDY     vGateOpenAnimationCounter
-                BMI     loc_743
+                LDY     vGateOpenPosition
+                BMI     @gateNotOpening
                 LDA     #0
                 STA     FONT_GATE,Y
-                DEC     vGateOpenAnimationCounter
-                BPL     loc_739
+                DEC     vGateOpenPosition
+                BPL     @gateOpeningSnd
                 STA     AUDC4
                 LDY     #SOUND_EFFECT::OPEN_GATE
                 JSR     SOUND_PLAY_on_CH4
-                JMP     loc_743
-; ---------------------------------------------------------------------------
-
-loc_739:
-                TYA
+                JMP     @gateNotOpening
+@gateOpeningSnd:        TYA
                 ASL     A
                 STA     AUDF4
                 LDA     #AUDC_POLYS_5|6
                 STA     AUDC4
+@gateNotOpening:
 
-loc_743:
-                                        ; START+178↑j
                 LDA     CH              ; GLOBAL VARIABLE FOR KEYBOARD
                 CMP     #KEY_9|KEY_SHIFT|KEY_CTRL
-                BEQ     _game_end_reached_ ; => yes
+                BEQ     @game_end_reached ; => yes
 
                 LDA     player_lives
-                BPL     loc_759
+                BPL     @playerAlive
+
                 LDA     #PLAYER_STATE::GAME_LOST ; Player lost all lifes
                 STA     PLAYER_STATE
                 JSR     RESET_CTIA_POKEY
                 JMP     GAME_OVER
 ; ---------------------------------------------------------------------------
 
-loc_759:
+; Player is alive, check if the game was won
+@playerAlive:
                 LDY     #15
-
-loc_75B:
-                LDA     vTrasuresCollected,Y
-                BNE     _continue_game_ ; 1 player, 1 pharaoh, 1 mummy (the winged revenge is not part of this loop)
+: 		        LDA     vTrasuresCollected,Y
+                BNE     @continue_game  ; At least one treasure is still missing =>
                 DEY
-                BPL     loc_75B
+                BPL     :-
+
                 LDA     CURRENT_ROOM
                 CMP     #ROOM_NUMBER::ENTRANCE_TITLE
-                BNE     _continue_game_ ; 1 player, 1 pharaoh, 1 mummy (the winged revenge is not part of this loop)
+                BNE     @continue_game  ; Player is not back at the entrance =>
 
-_game_end_reached_:
+@game_end_reached:
                 JSR     RESET_CTIA_POKEY
                 LDY     #SOUND_EFFECT::GAME_END
-
-loc_76E:
-                JSR     SOUND_PLAY_on_CH4
+:               JSR     SOUND_PLAY_on_CH4
                 DEY
-                BPL     loc_76E
+                BPL     :-
                 LDA     #PLAYER_STATE::WON_GAME ; Player won the game
                 STA     PLAYER_STATE
                 JMP     GAME_OVER
 ; ---------------------------------------------------------------------------
 
-_continue_game_:
-                                        ; START+1A9↑j
+@continue_game:
                 LDX     #PM_OBJECT::MUMMY ; 1 player, 1 pharaoh, 1 mummy (the winged revenge is not part of this loop)
 
+; PROTECTION: Checksum over checksum code, which checksums the boot code!
                 LDY     #7
                 LDA     #0
                 CLC
-
-PROT_CHECKSUM_C:
-                ADC     PROT_CHECKSUM_B,Y
+:				ADC     PROT_CHECKSUM_B,Y
                 DEY
-                BNE     PROT_CHECKSUM_C
-                CMP     #$4A ; 'J'
-                BEQ     PROT_CHECKSUM_C3
+                BNE     :-
+                CMP     #$4A
+                BEQ     PROT_CHECKSUM_CD
                 LDA     RANDOM
+PROT_CHECKSUM_C:STA     PROT_PM_GRAPHICS_MSB_1
+PROT_CHECKSUM_CD:
 
-PROT_CHECKSUM_C2:
-                STA     PROT_PM_GRAPHICS_MSB_1
-
-PROT_CHECKSUM_C3:
+				; Lower volume for channel #4
                 LDA     vAudio_AUDC4
-                BEQ     loc_79E
+                BEQ     :+
                 SEC
                 SBC     #1
                 STA     vAudio_AUDC4
                 STA     AUDC4
+:
 
-loc_79E:
+				; Increment frequency for channel #1
                 BIT     vAudio_AUDC1
                 BMI     _next_player_loop
                 DEC     vAudio_AUDC1
@@ -912,12 +888,11 @@ loc_79E:
                 STA     AUDF1
 
 _next_player_loop:
-                                        ; START+1E6↑j ...
                 LDA     COLOR_TAB+1,X
                 STA     PCOLR1,X        ; P1 COLOR
 
-                JSR     CALC_TILE_POS
-                JSR     FIRE_GUN
+                JSR     CALC_TILE_POS   ; Convert player position into a tile position
+                JSR     DO_BULLET		; manage the bullets (trigger, movement, etc)
 
                 CPX     #PM_OBJECT::PLAYER ; the actual player
                 BEQ     _is_the_player  ; The player is controlled by the joystick, not by the computer =>
@@ -937,15 +912,12 @@ _next_player_loop:
                 SBC     vTEMP1
                 STA     vEnemyDelay,X   ; Delay = 48 - 8 * level
 
-loc_7E2:
-                LDA     CURRENT_ROOM,X
-
-loc_7E4:
-                CLC
-                ADC     #1              ; move to the next room (except title screen)
+loc_7E2:        LDA     CURRENT_ROOM,X
+:               CLC
+                ADC     #1              ; move to the next room (but skip title screen)
                 AND     #$F
                 CMP     #ROOM_NUMBER::ENTRANCE_TITLE
-                BEQ     loc_7E4
+                BEQ     :-
                 STA     CURRENT_ROOM,X
 
                 CMP     CURRENT_ROOM    ; enemey in the same room as the player?
@@ -956,15 +928,11 @@ loc_7E4:
                 BNE     _no_enemy_in_this_loop ; => no
                 LDA     #50
                 STA     GAME_LOOP_COUNTDOWN
-
 _no_enemy_in_this_loop:
-                                        ; START+23A↑j
                 JSR     DO_CROWN_ARROW
                 JMP     _player_done
-; ---------------------------------------------------------------------------
 
-loc_805:
-                LDA     CROWN_ARROW_DURATION,X
+loc_805:        LDA     CROWN_ARROW_DURATION,X
                 BPL     loc_7E2
 
                 LDA     #7
@@ -995,16 +963,14 @@ _same_room:
 
 _is_the_player:
                 LDA     DEATH_ANIM,X
-                BEQ     loc_844
+                BEQ     :+
                 JMP     _player_dead
-; ---------------------------------------------------------------------------
+:
+                CPX     #PM_OBJECT::PLAYER ; the actual player?
+                BNE     @check_ply_on_elevator
 
-loc_844:
-                CPX     #PM_OBJECT::PLAYER ; the actual player
-                BNE     _check_ply_on_elevator
                 BIT     vWingedAvenger_Attach_Flag
-                BMI     _check_ply_on_elevator
-
+                BMI     @check_ply_on_elevator
                 LDA     PM_XPOS+3
                 STA     PM_XPOS
                 LDA     PM_YPOS+3       ; attach player to the Winged Avenger
@@ -1023,247 +989,222 @@ loc_844:
                 JMP     _player_no_motion ; => no joystick input by the player
 ; ---------------------------------------------------------------------------
 
-_check_ply_on_elevator:
-                                        ; START+28D↑j
+@check_ply_on_elevator:
                 LDA     PM_XPOS,X
                 SEC
                 SBC     vELEVATOR_X
-                BPL     loc_87A
+                BPL     :+
                 EOR     #$FF
-
-loc_87A:
+:
                 CMP     #4
-                BCS     _no_on_elevator
+                BCS     @no_on_elevator
                 LDA     PM_YPOS,X
                 SEC
                 SBC     vELEVATOR_Y
-                BPL     _no_on_elevator
+                BPL     @no_on_elevator
                 EOR     #$FF
                 CMP     #7
-                BCS     _no_on_elevator
+                BCS     @no_on_elevator
                 DEC     PM_YPOS,X       ; Move up on the elevator
                 DEC     PM_YPOS,X
                 JMP     _player_no_motion_sound
 ; ---------------------------------------------------------------------------
 
-_no_on_elevator:
-                                        ; START+2C6↑j ...
+@no_on_elevator:
                 LDA     ROPE_UNDER_PLAYER,X
                 CMP     #TILE::ROPE
-                BEQ     _no_right_or_left
+                BEQ     @no_right_or_left
                 LDA     PM_YPOS,X
                 CMP     #42
-                BCC     _no_right_or_left
+                BCC     @no_right_or_left
 
                 LDA     vPLAYER_DIRECTION,X
                 CMP     #DIRECTION::LEFT
-                BNE     _no_left
+                BNE     @no_left
                 LDA     TILE_LEFT,X
-                BMI     _no_right_or_left
+                BMI     @no_right_or_left
                 AND     #(~TILE::ACTION_FLAG) & $FF
                 CMP     #TILE::FLOOR_03
-                BNE     _no_right_or_left
+                BNE     @no_right_or_left
                 LDA     PM_XPOS,X
-                BNE     _x_plus_2
+                BNE     @x_plus_2
 
-_no_left:
-                CMP     #DIRECTION::RIGHT
-                BNE     _no_right_or_left
+@no_left:       CMP     #DIRECTION::RIGHT
+                BNE     @no_right_or_left
                 LDA     TILE_RIGHT,X
-                BMI     _no_right_or_left
+                BMI     @no_right_or_left
                 AND     #(~TILE::ACTION_FLAG) & $FF
                 CMP     #TILE::FLOOR_03
-                BNE     _no_right_or_left
+                BNE     @no_right_or_left
                 LDA     PM_XPOS,X
-                BNE     _x_minus_2
+                BNE     @x_minus_2
 
-_no_right_or_left:
-                                        ; START+2E3↑j ...
+@no_right_or_left:
+
                 LDA     vCollisionsPlayfield+1,X
                 AND     #COLLISION_PLAYFIELD::C1_WALL ; Wall color
                 CMP     #COLLISION_PLAYFIELD::C1_WALL ; Wall color
-                BNE     loc_8E8
+                BNE     @no_xUpdate
                 LDA     PM_XPOS,X
-                BMI     _x_minus_2
-
-_x_plus_2:
-                CLC
+                BMI     @x_minus_2
+@x_plus_2:      CLC
                 ADC     #2
-                JMP     _update_xpos
-; ---------------------------------------------------------------------------
-
-_x_minus_2:
-                                        ; START+31C↑j
-                SEC
+                JMP     @update_xpos
+@x_minus_2:     SEC
                 SBC     #2
+@update_xpos:   STA     PM_XPOS,X
+@no_xUpdate:
 
-_update_xpos:
-                STA     PM_XPOS,X
-
-loc_8E8:
                 LDA     DEATH_ANIM,X
-                BNE     _player_out_of_bounds
+                BNE     :+
                 JSR     CHECK_NEXT_ROPE
-                BPL     _player_in_bounds
+                BPL     @player_in_bounds
+:               JMP     player_out_of_bounds
 
-_player_out_of_bounds:
-                JMP     player_out_of_bounds
-; ---------------------------------------------------------------------------
-
-_player_in_bounds:
+@player_in_bounds:
                 LDY     #2
-
-loc_8F7:
-                LDA     (pDEST_PTR),Y
+@checkLoop:     LDA     (pDEST_PTR),Y
                 CPY     #2
-                BCS     loc_90C
+                BCS     @nextCheck
                 CMP     #TILE::TRAP_0_left|TILE::ACTION_FLAG
-                BCC     loc_90C
+                BCC     @nextCheck
                 CPX     #PM_OBJECT::PLAYER ; the actual player
-                BEQ     _player_on_trap
+                BEQ     @player_on_trap
                 CMP     #TILE::TRAP_3_right|TILE::ACTION_FLAG
-                BCS     loc_90C
-
-_player_on_trap:
+                BCS     @nextCheck
+@player_on_trap:
                 JMP     DO_TRAPS
-; ---------------------------------------------------------------------------
 
-loc_90C:
-                                        ; START+341↑j ...
-                CPX     #PM_OBJECT::PLAYER ; the actual player
-                BNE     loc_920
+@nextCheck:     CPX     #PM_OBJECT::PLAYER ; the actual player
+                BNE     :+
                 CMP     #TILE::TREASURE_left|TILE::ACTION_FLAG
-                BEQ     _on_Treasure
+                BEQ     @on_Treasure
                 CMP     #TILE::TREASURE_right|TILE::ACTION_FLAG
-                BEQ     _on_Treasure
+                BEQ     @on_Treasure
                 CMP     #TILE::KEY_left|TILE::ACTION_FLAG
-                BEQ     _on_Key
+                BEQ     @on_Key
                 CMP     #TILE::GATE
-                BEQ     _on_Gate
+                BEQ     @on_Gate
+:               DEY
+                BPL     @checkLoop
+                BMI     @on_Gate_noKey ; unconditional branch
 
-loc_920:
-                DEY
-                BPL     loc_8F7
-                BMI     _on_Gate_noKey
-
-_on_Gate:
-                BIT     vKeyCollectedWhenPositive
-                BMI     _on_Gate_noKey
+; Player is on a gate
+@on_Gate:       BIT     vKeyCollectedWhenPositive
+                BMI     @on_Gate_noKey
                 LDA     #7
-                STA     vGateOpenAnimationCounter
+                STA     vGateOpenPosition
                 LDY     CURRENT_ROOM
                 LDA     #0
                 STA     save_FONT_1800_5B_GATE,Y
 
                 LDA     #$FF
                 STA     vKeyCollectedWhenPositive
-                BMI     _on_Gate_noKey
+                BMI     @on_Gate_noKey
 
-_on_Key:
-                LDA     vCollisionsPlayfield+1
+; Player is on a key
+@on_Key:        LDA     vCollisionsPlayfield+1
                 AND     #COLLISION_PLAYFIELD::C3_TRAPS_KEYS_TREASURE ; used for Traps, Keys and Treasures – flickering
                 BEQ     player_out_of_bounds
 
                 LDY     #15
-                LDA     #0              ; Erase key character (= make it invisible)
-
-loc_948:
-                STA     FONT_KEY,Y
+                LDA     #$00            ; Erase key character (= make it invisible)
+:               STA     FONT_KEY,Y
                 DEY
-                BPL     loc_948
+                BPL     :-
 
                 STA     vKeyCollectedWhenPositive
                 STA     HITCLR          ; POKE with any number to clear all player/missile collision registers
                 STA     vCollisionsPlayfield+1
+
                 LDY     #SOUND_EFFECT::KEY_COLLECTED
                 JSR     SOUND_PLAY_on_CH4 ; Key collected
+
                 SED
                 LDA     SCORE+1
                 CLC
                 ADC     #1              ; +1 Point
                 STA     SCORE+1
                 CLD
+
                 JSR     DRAW_TREASURES_LIVES
 
-_on_Gate_noKey:
-                                        ; START+36A↑j ...
+@on_Gate_noKey:
                 JMP     player_out_of_bounds
-; ---------------------------------------------------------------------------
 
-_on_Treasure:
-                                        ; START+358↑j
+@on_Treasure:
                 LDA     vCollisionsPlayfield+1
                 AND     #COLLISION_PLAYFIELD::C3_TRAPS_KEYS_TREASURE ; used for Traps, Keys and Treasures – flickering
                 BEQ     player_out_of_bounds
 
                 LDY     #SOUND_EFFECT::TREASURE_COLLECTED
                 JSR     SOUND_PLAY_on_CH4
+
+				; clear the treasure collected flag
                 LDA     #0
                 LDY     CURRENT_ROOM
                 STA     vTrasuresCollected,Y
+
+				; Erase the treasure image from the font to hide it
                 LDA     #>FONT_TREASURE
                 STA     pDEST_PTR+1
                 LDA     #<FONT_TREASURE
                 STA     pDEST_PTR
                 LDY     #15
-                LDA     #0
-
-loc_98A:
-                STA     (pDEST_PTR),Y
+                LDA     #$00
+:               STA     (pDEST_PTR),Y
                 DEY
-                BPL     loc_98A
+                BPL     :-
+
                 STA     HITCLR          ; POKE with any number to clear all player/missile collision registers
                 STA     vCollisionsPlayfield+1
-                INC     player_lives
+                INC     player_lives    ; collecting a treasure adds a live
+
                 SED
                 LDA     SCORE+1
                 CLC
                 ADC     #2
                 STA     SCORE+1
                 CLD
+
                 JSR     DRAW_TREASURES_LIVES
                 JMP     player_out_of_bounds
 ; ---------------------------------------------------------------------------
 
 player_out_of_bounds:
-                                        ; START+384↑j ...
                 LDA     PLAYER_IMG_ANIM_PHASE,X
                 CMP     #PM_IMAGE_OFFSET::RUN_LEFT_2
                 BEQ     _player_dead
                 LDA     vCollisionsPlayfield+1,X
                 AND     #COLLISION_PLAYFIELD::C0_FLOOR ; Floor color
-                BEQ     loc_9D7
+                BEQ     @loc_9D7
 
                 LDA     vPLAYER_DIRECTION,X
-                BEQ     loc_9BD
+                BEQ     @loc_9BD
                 DEC     PM_YPOS,X       ; Move up
 
-loc_9BD:
-                                        ; START+422↓j
+@loc_9BD:
                 LDA     #3
                 STA     SOUND_TIMER,X
                 BIT     vAudio_AUDC1
-                BPL     loc_9D0
+                BPL     :+
                 BIT     GAME_LOOP_COUNTDOWN
-                BPL     loc_9D0
+                BPL     :+
                 LDA     #0
                 STA     AUDC1
-
-loc_9D0:
-                                        ; START+40B↑j
+:
                 LDA     #$FF
                 STA     DOUBLE_YSPEED_FLAG
                 JMP     _player_dead
 ; ---------------------------------------------------------------------------
 
-loc_9D7:
+@loc_9D7:
                 LDA     TILE_MID,X
                 CMP     #TILE::FLOOR_03
-                BEQ     loc_9E2         ; Move down
+                BEQ     :+              ; Move down
                 AND     #1
-                BNE     loc_9BD
-
-loc_9E2:
+                BNE     @loc_9BD
+:
                 INC     PM_YPOS,X       ; Move down
                 LDA     #0
                 STA     DOUBLE_YSPEED_FLAG
@@ -1272,16 +1213,14 @@ _player_no_motion_sound:
                 DEC     SOUND_TIMER,X
                 BPL     _player_dead
                 BIT     vAudio_AUDC1
-                BPL     loc_A02
+                BPL     :+
                 BIT     GAME_LOOP_COUNTDOWN
-                BPL     loc_A02
+                BPL     :+
                 LDA     #AUDC_POLYS_NONE|1
                 STA     AUDC1
                 LDA     PM_YPOS,X
                 STA     AUDF1
-
-loc_A02:
-                                        ; START+437↑j
+:
                 LDA     #DIRECTION::NONE
                 STA     SOUND_TIMER,X
                 STA     vPLAYER_DIRECTION,X
@@ -1289,27 +1228,24 @@ loc_A02:
 ; ---------------------------------------------------------------------------
 
 _player_dead:
-                                        ; START+3EE↑j ...
                 CPX     #PM_OBJECT::PLAYER ; the actual player
                 BNE     _pharaoh_or_mummy
                 LDA     DEATH_ANIM
                 BNE     _player_dieing
 
+; PROTECTION: Checksum over the boot code
                 LDA     #0
                 TAY
                 CLC
-
-PROT_CHECKSUM_B:
-
-                ADC     BOOT_SECTOR,Y
+PROT_CHECKSUM_B:ADC     BOOT_SECTOR,Y
                 DEY
                 BNE     PROT_CHECKSUM_B
                 CMP     #$A8
-                BEQ     PROT_CHECKSUM_B2
+                BEQ     :+
                 LDA     RANDOM
                 STA     PM_GRAPHICS_MSB
+:
 
-PROT_CHECKSUM_B2:
                 JMP     _player_check_direction
 ; ---------------------------------------------------------------------------
 
@@ -1338,56 +1274,46 @@ _pharaoh_or_mummy:
                 JMP     _player_done
 ; ---------------------------------------------------------------------------
 
-loc_A5F:
-                                        ; START+48F↑j
-                JMP     loc_C5C
+loc_A5F:        JMP     loc_C5C
 ; ---------------------------------------------------------------------------
 
 _pharaoh_or_mummy_alive:
                 LDA     vCollisionsPlayer+1,X
-                BEQ     loc_A73
+                BEQ     @moveAway
                 CPX     #PM_OBJECT::PHARAOH
-                BEQ     loc_A70
+                BEQ     :+
                 INC     PM_XPOS,X
-                BNE     loc_A73
-
-loc_A70:
+                BNE     @moveAway
+:
                 DEC     PM_XPOS,X
+@moveAway:
 
-loc_A73:
-                                        ; START+4B0↑j
                 LDA     vCollisionsPlayfield+1,X
                 AND     #COLLISION_PLAYFIELD::C1_WALL ; Wall color
-                BEQ     loc_A93
+                BEQ     @loc_A93
                 CPX     #PM_OBJECT::PHARAOH
-                BEQ     loc_A86
+                BEQ     :+
                 BIT     vPHARAOH_IN_WALL
-                BMI     loc_A86
+                BMI     :+
                 DEC     vPHARAOH_IN_WALL
+:
 
-loc_A86:
-                                        ; START+4C3↑j
                 LDA     vPLAYER_DIRECTION,X
                 CMP     #DIRECTION::LEFT
-                BEQ     loc_A90
+                BEQ     :+
                 JMP     _move_left
+:               JMP     _move_right
+
 ; ---------------------------------------------------------------------------
 
-loc_A90:
-                JMP     _move_right
-; ---------------------------------------------------------------------------
-
-loc_A93:
-                LDA     PM_YPOS
+@loc_A93:       LDA     PM_YPOS
                 SEC
                 SBC     PM_YPOS,X
-                BPL     loc_AA1         ; Y-Delta to the player < 16?
+                BPL     :+              ; Y-Delta to the player < 16?
                 EOR     #$FF
                 CLC
                 ADC     #1
-
-loc_AA1:
-                CMP     #16             ; Y-Delta to the player < 16?
+:               CMP     #16             ; Y-Delta to the player < 16?
                 BMI     _shot_gun_at_player ; => yes, could be a collision
 
                 LDA     #256-1
@@ -1408,23 +1334,18 @@ loc_AA1:
                 BCS     _continue_move
                 LDA     PM_XPOS,X
                 CMP     vELEVATOR_X
-                BNE     loc_AD3
+                BNE     :+
                 LDA     #DIRECTION::NONE
                 BEQ     _on_elevator_wait
 
-loc_AD3:
-                BCS     _move_left
+:               BCS     _move_left
                 BCC     _move_right
 
 _continue_move:
-                                        ; START+4F3↑j ...
                 DEC     vPlayerRunTimer,X ; How many cycles will the player run in one direction?
-                BMI     loc_ADF
+                BMI     :+
                 JMP     _move_x_direction
-; ---------------------------------------------------------------------------
-
-loc_ADF:
-                LDA     RANDOM
+:               LDA     RANDOM
                 AND     #$3F ; '?'
                 STA     vPlayerRunTimer,X ; How many cycles will the player run in one direction?
                 LDA     RANDOM
@@ -1439,98 +1360,79 @@ _on_elevator_wait:
 
 _shot_gun_at_player:
                 LDA     SHOT_COUNTER,X
-                BPL     loc_B01
+                BPL     :+
                 LDA     #8
                 STA     SHOT_COUNTER,X  ; wait for 8 cycles to fire at player
-                BPL     loc_B0A
-
-loc_B01:
-                CMP     #0
-                BEQ     loc_B0A
+                BPL     @loc_B0A
+:               CMP     #0
+                BEQ     @loc_B0A
                 DEC     SHOT_COUNTER,X
                 BNE     _continue_move
-
-loc_B0A:
-                                        ; START+545↑j
-                STA     SHOT_PROBABILITY
+@loc_B0A:       STA     SHOT_PROBABILITY
 
                 LDA     PM_XPOS
                 SEC
                 SBC     PM_XPOS,X
-                BPL     loc_B18
+                BPL     :+
                 EOR     #$FF
-
-loc_B18:
-                CMP     #16
+:               CMP     #16
                 BCC     _continue_move
                 LDA     PM_XPOS
                 CMP     PM_XPOS,X
                 BCC     _move_left
 
 _move_right:
-                                        ; START+517↑j
                 LDA     #DIRECTION::RIGHT
-
 _player_set_direction_:
                 JMP     _player_set_direction
 ; ---------------------------------------------------------------------------
 
-_move_left:
-                                        ; START:loc_AD3↑j ...
-                LDA     #DIRECTION::LEFT
+_move_left:     LDA     #DIRECTION::LEFT
                 BPL     _player_set_direction_
 
 _player_check_direction:
                 LDA     vPlayer_counter_b
-                BPL     loc_B3D
+                BPL     :+
                 BIT     vPlayer_counter_c
-                BMI     loc_B57
+                BMI     @loc_B57
                 DEC     vPlayer_counter_c
-                JMP     loc_BAF
-; ---------------------------------------------------------------------------
-
-loc_B3D:
-                LDA     #3
+                JMP     @loc_BAF
+:               LDA     #3
                 STA     vAudio_AUDC2_AUDC3
 
                 DEC     vPlayer_counter_b,X
-                BPL     loc_BAF
+                BPL     @loc_BAF
                 LDA     #15
                 STA     vPlayer_counter_c
                 LDA     #DIRECTION::NONE
                 STA     SOUND_TIMER
                 STA     vPLAYER_DIRECTION
                 STA     vAudio_AUDF2_60Hz_countDown
-                BEQ     loc_BAF
+                BEQ     @loc_BAF
 
-loc_B57:
-                BIT     vPlayer_counter_a
-                BMI     loc_B61
+@loc_B57:       BIT     vPlayer_counter_a
+                BMI     :+
                 DEC     vPlayer_counter_a
-                BPL     _joystick_up
-
-loc_B61:
+                BPL     @joystick_up
+:
                 LDA     vWingedAvenger_Hunt_Timer
-                BPL     loc_B71
+                BPL     :+
                 LDA     RANDOM
                 AND     #$F
-                BNE     loc_B71
+                BNE     :+
                 LDA     #4
                 STA     vPlayer_counter_a
+:
 
-loc_B71:
-                                        ; START+5AC↑j
                 LDA     vJoystickInput
                 CMP     #(~JOYSTICK::J1_UP) & $FF
-                BNE     loc_B8D
+                BNE     @loc_B8D
 
-_joystick_up:
-                DEC     PM_YPOS
+@joystick_up:   DEC     PM_YPOS
                 BIT     DOUBLE_YSPEED_FLAG
-                BMI     loc_B82
+                BMI     :+
                 DEC     PM_YPOS
-
-loc_B82:
+:
                 LDA     #PM_IMAGE_OFFSET::CLIMBING
                 STA     PLAYER_IMG_ANIM_PHASE
                 LDA     #DIRECTION::CLIMB
@@ -1538,14 +1440,13 @@ loc_B82:
                 BPL     _player_set_direction
 ; ---------------------------------------------------------------------------
 
-loc_B8D:
-                AND     #JOYSTICK::J1_UP
-                BNE     loc_BAF
+@loc_B8D:       AND     #JOYSTICK::J1_UP
+                BNE     @loc_BAF
                 LDA     #0
                 STA     vWingedAvenger_Counter
                 LDA     PLAYER_IMG_ANIM_PHASE
                 CMP     #PM_IMAGE_OFFSET::RUN_LEFT_2
-                BNE     loc_BAF
+                BNE     @loc_BAF
                 LDA     #13
                 STA     vPlayer_counter_b
                 LDA     #8
@@ -1555,68 +1456,52 @@ loc_B8D:
                 JMP     _move_x_direction
 ; ---------------------------------------------------------------------------
 
-loc_BAF:
-                                        ; START+586↑j ...
+@loc_BAF:
                 LDA     vJoystickInput
                 AND     #JOYSTICK::J1_LEFT
-                BEQ     loc_BC1
+                BEQ     :+
                 LDA     #JOYSTICK::J1_RIGHT
                 AND     vJoystickInput
-                BNE     loc_BC5
+                BNE     @loc_BC5
                 LDA     #DIRECTION::RIGHT
                 BPL     _player_set_direction
-
-loc_BC1:
-                LDA     #DIRECTION::LEFT
+:               LDA     #DIRECTION::LEFT
                 BPL     _player_set_direction
 
-loc_BC5:
-                LDA     #DIRECTION::NONE
+@loc_BC5:       LDA     #DIRECTION::NONE
 
 _player_set_direction:
-                                        ; START+534↑j ...
                 STA     vPLAYER_DIRECTION,X
 
 _move_x_direction:
-                                        ; START+5EE↑j
                 LDA     vPLAYER_DIRECTION,X
                 CMP     #DIRECTION::LEFT
-                BNE     loc_BD7
+                BNE     :+
                 DEC     PM_XPOS,X
                 JMP     _player_no_motion
-; ---------------------------------------------------------------------------
-
-loc_BD7:
-                CMP     #DIRECTION::RIGHT
+:               CMP     #DIRECTION::RIGHT
                 BNE     _player_no_motion
                 INC     PM_XPOS,X
 
 _player_no_motion:
-                                        ; START+616↑j ...
                 LDA     PM_XPOS,X
                 STA     HPOSP1,X        ; Horizontal position of player 1
 
                 CPX     #PM_OBJECT::PHARAOH
-                BNE     loc_C01
+                BNE     @loc_C01
                 LDY     vPLAYER_DIRECTION+1
                 CPY     #DIRECTION::LEFT
-                BEQ     loc_BF7
+                BEQ     :+
                 LDY     #(PM_GRAPHICS_1210_PHARAOH_CLOTHING_RIGHT-PM_GRAPHICS_1210_PHARAOH_CLOTHING_LEFT)+15
                 CLC
                 ADC     #2
-                JMP     loc_BFC
-; ---------------------------------------------------------------------------
-
-loc_BF7:
-                LDY     #15
+                JMP     @loc_BFC
+:               LDY     #15
                 CLC
                 ADC     #4
-
-loc_BFC:
-                STA     HPOSM1          ; Horizontal position of missile 1
+@loc_BFC:       STA     HPOSM1          ; Horizontal position of missile 1
                 STY     vTEMP2          ; Offset for the clothing of the pharaoh
-
-loc_C01:
+@loc_C01:
                 LDA     PM_XPOS
                 STA     HPOSP0          ; Horizontal position of player 0
 
@@ -1626,78 +1511,62 @@ loc_C01:
                 STA     vWingedAvenger_Counter,X
                 LDA     vPLAYER_DIRECTION,X
                 CMP     #DIRECTION::LEFT
-                BCS     loc_C20
+                BCS     :+
                 LDA     #PM_IMAGE_OFFSET::STANDING
                 STA     PLAYER_IMG_ANIM_PHASE,X
                 JMP     loc_C5C
-; ---------------------------------------------------------------------------
 
-loc_C20:
-                CPX     #PM_OBJECT::PLAYER ; the actual player
-                BNE     loc_C29
+:               CPX     #PM_OBJECT::PLAYER ; the actual player
+                BNE     :+
                 LDA     vPlayer_counter_b
                 BPL     loc_C5C
-
-loc_C29:
+:
                 LDA     PLAYER_IMG_ANIM_PHASE,X
                 CLC
                 ADC     PLAYER_IMG_ANIM_STEP,X
                 CMP     #PM_IMAGE_OFFSET::RUN_LEFT_2+1
-                BCC     loc_C3D
+                BCC     :+
                 LDA     #(-(PM_IMAGE_OFFSET::RUN_LEFT_1-PM_IMAGE_OFFSET::RUN_LEFT_0)) & $FF
                 STA     PLAYER_IMG_ANIM_STEP,X
                 LDA     #PM_IMAGE_OFFSET::RUN_LEFT_2
-                BNE     loc_C59
-
-loc_C3D:
+                BNE     @loc_C59
+:
                 CMP     #PM_IMAGE_OFFSET::RUN_LEFT_0
-                BCS     loc_C59
+                BCS     @loc_C59
                 LDA     #(PM_IMAGE_OFFSET::RUN_LEFT_1-PM_IMAGE_OFFSET::RUN_LEFT_0)
                 STA     PLAYER_IMG_ANIM_STEP,X
                 LDA     #3
                 CPX     #PM_OBJECT::PLAYER ; the actual player
-                BNE     loc_C50
+                BNE     :+
                 STA     vAudio_AUDC2_AUDC3
-                BNE     loc_C57
+                BNE     @loc_C57
+:               STA     vAudio_AUDC4
 
-loc_C50:
-                STA     vAudio_AUDC4
                 LDA     #96
                 STA     AUDF4
 
-loc_C57:
-                LDA     #PM_IMAGE_OFFSET::RUN_LEFT_0
-
-loc_C59:
-                                        ; START+681↑j
-                STA     PLAYER_IMG_ANIM_PHASE,X
-
+@loc_C57:       LDA     #PM_IMAGE_OFFSET::RUN_LEFT_0
+@loc_C59:       STA     PLAYER_IMG_ANIM_PHASE,X
 loc_C5C:
-                                        ; START+64C↑j ...
                 LDA     DEATH_ANIM,X
-                BNE     loc_C63
+                BNE     :+
                 LDA     #$FF            ; no noise
-
-loc_C63:
-                STA     vAddRandomDeathNoiseFlag
+:               STA     vAddRandomDeathNoiseFlag
 
                 LDA     PLAYER_IMG_ANIM_PHASE,X
                 LDY     vPLAYER_DIRECTION,X
                 CPY     #DIRECTION::LEFT
-                BCC     loc_C77
+                BCC     :+
                 CPY     #DIRECTION::RIGHT
-                BNE     loc_C77
+                BNE     :+
                 CLC
                 ADC     #PM_IMAGE_OFFSET::RUN_RIGHT_0-PM_IMAGE_OFFSET::RUN_LEFT_0
-
-loc_C77:
-                                        ; START+6B4↑j
+:
                 CPX     #PM_OBJECT::MUMMY
-                BNE     loc_C7E
+                BNE     :+
                 CLC
                 ADC     #<PM_GRAPHICS_1280_MUMMY
-
-loc_C7E:
+:
                 STA     sSRC_PTR
                 LDA     PLAYER_IMG_MSB,X
                 STA     sSRC_PTR+1
@@ -1706,7 +1575,7 @@ loc_C7E:
                 LDA     PM_YPOS,X
                 STA     pDEST_PTR
 
-loc_C8F:
+@oloop:
                 LDY     #17
                 LDA     #0
                 STA     (pDEST_PTR),Y   ; 2 empty lines on the top
@@ -1714,21 +1583,19 @@ loc_C8F:
                 STA     (pDEST_PTR),Y
                 DEY
 
-loc_C99:
+@loop:
                 LDA     (sSRC_PTR),Y
                 BIT     vAddRandomDeathNoiseFlag
-                BMI     loc_CA3
+                BMI     :+
                 AND     RANDOM
-
-loc_CA3:
-                STA     (pDEST_PTR),Y
+:               STA     (pDEST_PTR),Y
                 DEY
-                BPL     loc_C99
+                BPL     @loop
 
                 CPX     #PM_OBJECT::ILLEGAL ; illegal value
-                BEQ     loc_CC2
+                BEQ     @loc_CC2
                 CPX     #PM_OBJECT::PLAYER ; the actual player
-                BNE     loc_CCA         ; => no
+                BNE     @loc_CCA         ; => no
 
                 DEX
                 LDA     sSRC_PTR
@@ -1739,36 +1606,31 @@ loc_CA3:
                 CLC
                 ADC     #>(PM_GRAPHICS_1_PLAYER-PM_GRAPHICS_0_PLAYER)
                 STA     pDEST_PTR+1
-                JMP     loc_C8F
-; ---------------------------------------------------------------------------
+                JMP     @oloop
 
-loc_CC2:
-                INX
+@loc_CC2:       INX
                 INY
                 DEC     pDEST_PTR
                 LDA     #0
                 STA     (pDEST_PTR),Y
-
-loc_CCA:
+@loc_CCA:
                 CPX     #PM_OBJECT::PHARAOH
-                BNE     loc_CE5         ; => no
+                BNE     @noPharaoh      ; => no
 
                 LDA     #>PM_GRAPHICS_MISSLES
                 STA     pDEST_PTR+1
                 LDY     #15
                 LDX     vTEMP2
-
-loc_CD6:
-                LDA     (pDEST_PTR),Y
+:               LDA     (pDEST_PTR),Y
                 AND     #%11110011
                 ORA     PM_GRAPHICS_1210_PHARAOH_CLOTHING_LEFT,X ; Blue headdress and skirt of the pharao
                 STA     (pDEST_PTR),Y
                 DEX
                 DEY
-                BPL     loc_CD6
+                BPL     :-
                 LDX     #PM_OBJECT::PHARAOH
 
-loc_CE5:
+@noPharaoh:
                 JSR     CHECK_LEVEL_EXIT
 
 _player_done:
@@ -1776,8 +1638,7 @@ _player_done:
                 LDA     #3
                 STA     vTEMP2          ; This looks like a level based delay to slow the game down
 
-loc_CEC:
-                LDA     level
+@loopt:         LDA     level
                 ASL     A
                 ASL     A
                 ASL     A
@@ -1787,28 +1648,22 @@ loc_CEC:
                 LDA     #160
                 SBC     vTEMP1
                 STA     vTEMP1          ; = 160 - level * 32
-
-loc_CFC:
-                DEC     vTEMP1          ; Count this value down to 0
-                BNE     loc_CFC         ; Count this value down to 0
+:               DEC     vTEMP1          ; Count this value down to 0
+                BNE     :-              ; Count this value down to 0
                 DEC     vTEMP2          ; repeat 3 times
-                BPL     loc_CEC
+                BPL     @loopt
 
                 DEX
-                BMI     loc_D0A
-
+                BMI     :+
                 JMP     _next_player_loop
-; ---------------------------------------------------------------------------
 
-loc_D0A:
-                LDX     #PM_OBJECT::WINGED_AVENGER ; flying across the screens
+:               LDX     #PM_OBJECT::WINGED_AVENGER ; flying across the screens
                 JSR     DO_WINGED_AVENGER
                 JSR     DO_FONT_ANIMATIONS
                 JMP     GAME_LOOP
 .endproc
 
 ; =============== S U B R O U T I N E =======================================
-
 
 .proc CLEAR_PM_GRAPHICS
                 LDA     PM_GRAPHICS_MSB,X
@@ -1843,59 +1698,63 @@ loc_D0A:
 
 
 FIND_NEXT_ROOM:
+
+; PROTECTION: Checksum over the boot code! This routine is patched before running it
                 LDA     #$1E
                 LDY     #$3F ; '?'
 PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
                 DEY
                 BPL     PROT_CHECKSUM   ; patched to ADC $500,Y
                 PHA
+; That said: the result is _never_ tested!
 
                 LDA     CURRENT_ROOM,X
                 LDY     level_exit_direction,X
                 CPY     #LEVEL_EXIT::BOTTOM
-                BNE     loc_D5F         ; Row of rooms
+                BNE     @checkRoom      ; Row of rooms
                 CMP     #ROOM_NUMBER::ENTRANCE_TITLE
-                BNE     loc_D5F         ; Row of rooms
+                BNE     @checkRoom      ; Row of rooms
 
-_exit_from_title:
+@exit_from_title:
                 LDA     RANDOM          ; Pick random room 0,2 or 3 after starting the game
                 AND     #3
                 CMP     #1
-                BEQ     _exit_from_title ; Pick random room 0,2 or 3 after starting the game
-                BNE     _first_game_room
+                BEQ     @exit_from_title ; Pick random room 0,2 or 3 after starting the game
+                BNE     @first_game_room
 
-loc_D5F:        AND     #3              ; Row of rooms
+@checkRoom:     AND     #3              ; Row of rooms
                 DEY
-                BNE     loc_D67         ; Exit to the left?
+                BNE     :+              ; Exit to the left?
                 SEC
                 SBC     #1              ; Pick room to the left
-
-loc_D67:        DEY
-                BNE     loc_D6D         ; Exit to the right?
+:
+                DEY
+                BNE     :+              ; Exit to the right?
                 CLC
                 ADC     #1              ; Pick room to the right
-
-loc_D6D:        AND     #3
+:
+                AND     #3
                 STA     vTEMP1          ; Room position in the row
 
                 LDA     #%1100
                 AND     CURRENT_ROOM,X  ; vertical position of the room
                 DEY
-                BNE     loc_D7B         ; Exit at the top?
+                BNE     :+              ; Exit at the top?
                 SEC
                 SBC     #4              ; Pick room above
-
-loc_D7B:        DEY
-                BNE     loc_D81         ; Exit at the bottom?
+:
+                DEY
+                BNE     :+              ; Exit at the bottom?
                 CLC
                 ADC     #4              ; Pick room below
-
-loc_D81:        AND     #%1100
+:
+                AND     #%1100
                 ORA     vTEMP1
 
-_first_game_room:
+@first_game_room:
                 STA     CURRENT_ROOM,X
 
+; PROTECTION: Result of the checksum code
                 PLA                     ; Checksum (never checked!)
                 ORA     #0
                 RTS
@@ -1907,33 +1766,32 @@ _first_game_room:
                 LDY     #LEVEL_EXIT::NO
                 LDA     PM_XPOS,X
                 CMP     #42
-                BCS     loc_D98
+                BCS     :+
                 LDY     #LEVEL_EXIT::LEFT
-                BPL     _exit_check_done
+                BPL     @exit_check_done
 
-loc_D98:        CMP     #207
-                BCC     loc_DA0
+:               CMP     #207
+                BCC     :+
                 LDY     #LEVEL_EXIT::RIGHT
-                BPL     _exit_check_done
+                BPL     @exit_check_done
 
-loc_DA0:        LDA     PM_YPOS,X
+:               LDA     PM_YPOS,X
                 CMP     #23
-                BCS     loc_DAB
+                BCS     :+
                 LDY     #LEVEL_EXIT::TOP
-                BPL     _exit_check_done
+                BPL     @exit_check_done
 
-loc_DAB:        CMP     #228
-                BCC     _exit_check_done
+:               CMP     #228
+                BCC     @exit_check_done
                 LDY     #LEVEL_EXIT::BOTTOM
 
-_exit_check_done:
+@exit_check_done:
                 CPY     #LEVEL_EXIT::NO
-                BNE     _level_exit
+                BNE     @level_exit
                 RTS
 ; ---------------------------------------------------------------------------
 
-_level_exit:
-                TYA
+@level_exit:    TYA
                 STA     level_exit_direction,X
 
                 JSR     CLEAR_PM_GRAPHICS
@@ -1941,12 +1799,12 @@ _level_exit:
                 JSR     FIND_NEXT_ROOM
 
                 CPX     #PM_OBJECT::PLAYER ; the actual player
-                BEQ     loc_DCB
+                BEQ     :+
                 LDA     #0
                 STA     DEATH_ANIM,X
                 RTS
 
-loc_DCB:        LDA     #0
+:               LDA     #0
                 STA     SNDF1_NoteOffset
                 STA     CROWN_ARROW_DURATION+1
                 STA     CROWN_ARROW_XPOS
@@ -1975,9 +1833,7 @@ loc_DCB:        LDA     #0
                 STA     vELEVATOR_X
                 STX     vTEMP1
                 LDX     #2
-
-loc_E03:
-                INY
+@loop:          INY
                 LDA     (XLEVELPTR),Y   ; Ptr to additional level data ($1E0 bytes after the beginning)
                 STA     ENTRY_START_XPOS+1,X
                 INY
@@ -1985,15 +1841,14 @@ loc_E03:
                 STA     ENTRY_START_YPOS+1,X
                 INX
                 CPX     #LEVEL_EXIT::RIGHT
-                BEQ     loc_E1E
+                BEQ     @loopdone
                 CPX     #LEVEL_EXIT::BOTTOM
-                BNE     loc_E03
+                BNE     @loop
                 LDX     #0
                 STX     ATRACT          ; ATTRACT MODE FLAG
-                BEQ     loc_E03
+                BEQ     @loop
 
-loc_E1E:
-                LDX     vTEMP1
+@loopdone:      LDX     vTEMP1
                 INY
                 LDA     (XLEVELPTR),Y   ; Ptr to additional level data ($1E0 bytes after the beginning)
                 STA     COLOR0          ; COLOR 0
@@ -2010,27 +1865,22 @@ loc_E1E:
                 LDA     vTrasuresCollected,Y
                 STA     vTEMP1
                 LDY     #15
-
-loc_E3F:
-                LDA     vTEMP1
-                BEQ     loc_E45
+@loopTreas:     LDA     vTEMP1          ; Treasure already collected?
+                BEQ     @skipTreas      ; => clear the graphics
                 LDA     (XLEVELPTR),Y   ; Ptr to additional level data ($1E0 bytes after the beginning)
-
-loc_E45:
-                STA     FONT_TREASURE,Y
+@skipTreas:     STA     FONT_TREASURE,Y
                 DEY
-                BPL     loc_E3F
+                BPL     @loopTreas
 
                 LDY     level_exit_direction
                 LDA     #DIRECTION::NONE
                 BIT     vWingedAvenger_Attach_Flag
-                BMI     loc_E5D
+                BMI     :+
                 DEC     vWingedAvenger_Attach_Flag
-                BMI     loc_E5D
+                BMI     :+
                 LDA     ENTRY_START_XPOS,Y
+:               STA     PM_XPOS+3
 
-loc_E5D:
-                STA     PM_XPOS+3
                 LDA     ENTRY_START_YPOS,Y
                 STA     PM_YPOS
                 STA     PM_YPOS+3
@@ -2040,21 +1890,17 @@ loc_E5D:
                 STX     vTEMP1
                 LDX     CURRENT_ROOM
                 LDY     #7
-
-loc_E75:
-                LDA     save_FONT_1800_5B_GATE,X
+:               LDA     save_FONT_1800_5B_GATE,X
                 STA     FONT_GATE,Y
                 DEY
-                BPL     loc_E75
+                BPL     :-
                 LDX     vTEMP1
 
                 LDY     #15
-
-loc_E82:
-                LDA     save_FONT_1800_5C_KEY,Y
+:               LDA     save_FONT_1800_5C_KEY,Y
                 STA     FONT_KEY,Y
                 DEY
-                BPL     loc_E82
+                BPL     :-
 
                 JSR     CLEAR_ALL_PM_GRAPHICS
 
@@ -2062,36 +1908,34 @@ loc_E82:
                 STA     SHOT_COUNTER+1
                 STA     SHOT_COUNTER+2
 
+				; reset the elevator state
                 LDA     vELEVATOR_STATE
-                BMI     loc_EA3
+                BMI     :+
                 LDA     #ELEVATOR_STATE::RESTORE
                 STA     vELEVATOR_STATE
                 JSR     DO_ELEVATOR
-
-loc_EA3:
+:
                 LDA     #ELEVATOR_STATE::START
                 STA     vELEVATOR_STATE
 
                 LDA     vELEVATOR_X
                 CMP     #20
-                BCS     loc_EB6
+                BCS     @loc_EB6
 
-loc_EAE:
-                LDA     #192
+@loc_EAE:       LDA     #192
                 STA     vELEVATOR_STATE
                 STA     ELEVATOR_PTR+1  ; Ptr to the 2x2 character position of the elevator
                 RTS
 ; ---------------------------------------------------------------------------
 
-loc_EB6:
-                LDA     #0
+@loc_EB6:       LDA     #0
                 STA     ELEVATOR_PTR+1  ; Ptr to the 2x2 character position of the elevator
                 STA     vELEVATOR_Y
                 LDA     vELEVATOR_BOTTOM
                 SEC
                 SBC     #34
                 CMP     #192
-                BCS     loc_EAE         ; This seems never happen with the levels!
+                BCS     @loc_EAE        ; This seems never happen with the levels!
 
                 AND     #$F0            ; yOffset = ((LEVEL_Y_BOTTOM - 34) >> 4) * 40
                 LSR     A
@@ -2116,10 +1960,9 @@ loc_EB6:
                 ADC     ELEVATOR_PTR    ; Ptr to the 2x2 character position of the elevator
                 STA     ELEVATOR_PTR    ; Ptr to the 2x2 character position of the elevator
                 STA     save_ELEVATOR_PTR
-                BCC     loc_EEF
+                BCC     :+
                 INC     ELEVATOR_PTR+1  ; Ptr to the 2x2 character position of the elevator
-
-loc_EEF:
+:
                 LDA     ELEVATOR_PTR+1  ; Ptr to the 2x2 character position of the elevator
                 CLC
                 ADC     LEVEL_MAP_ADR+1 ; Base address of the level data
@@ -2131,56 +1974,46 @@ loc_EEF:
 
 ; =============== S U B R O U T I N E =======================================
 
-.proc FIRE_GUN
+.proc DO_BULLET
                 LDA     BULLET_MAX_DISTANCE,X
-                BMI     FIRE_GUN_check_trigger
-                JMP     FIRE_GUN_move_bullet
-; ---------------------------------------------------------------------------
+                BMI     :+
+                JMP     @DO_BULLET_move_bullet
 
-FIRE_GUN_check_trigger:
-                LDA     CURRENT_ROOM,X
+:               LDA     CURRENT_ROOM,X
                 CMP     CURRENT_ROOM
-                BNE     FIRE_GUN_rts
+                BNE     @DO_BULLET_rts
                 LDA     DEATH_ANIM,X
-                BNE     FIRE_GUN_rts
+                BNE     @DO_BULLET_rts
                 CPX     #PM_OBJECT::PLAYER ; the actual player
-                BEQ     FIRE_GUN_checkButton
+                BEQ     :+
                 LDA     SHOT_COUNTER,X
-                BNE     FIRE_GUN_rts
+                BNE     @DO_BULLET_rts
                 LDA     RANDOM
                 AND     #$F
-                BNE     FIRE_GUN_rts
-                BEQ     FIRE_GUN_trigger_bullet
-
-FIRE_GUN_checkButton:
+                BNE     @DO_BULLET_rts
+                BEQ     @DO_BULLET_trigger
+:
                 LDA     STRIG0          ; Joystick button 0 pressed?
-                BEQ     FIRE_GUN_trigger_bullet
+                BEQ     @DO_BULLET_trigger
+@DO_BULLET_rts: RTS
 
-FIRE_GUN_rts:
-                                        ; FIRE_GUN+11↑j ...
-                RTS
-; ---------------------------------------------------------------------------
-
-FIRE_GUN_trigger_bullet:
-                                        ; FIRE_GUN+28↑j
+@DO_BULLET_trigger:
                 INC     pDEST_PTR
-                BNE     loc_F2C
+                BNE     :+
                 INC     pDEST_PTR+1
-
-loc_F2C:
+:
                 LDA     SUBPIXEL_Y
                 SEC
                 SBC     #4
                 STA     vTEMP1
-                BPL     loc_F40
+                BPL     :+
                 LDA     pDEST_PTR
                 SEC
                 SBC     #40
                 STA     pDEST_PTR
-                BCS     loc_F40
+                BCS     :+
                 DEC     pDEST_PTR+1
-
-loc_F40:
+:
                 LDA     vTEMP1
                 AND     #7
                 STA     BULLET_SAVE_SUBPIXEL_Y,X
@@ -2192,17 +2025,14 @@ loc_F40:
 
                 LDA     vPLAYER_DIRECTION,X
                 CMP     #DIRECTION::LEFT
-                BNE     loc_F5E
+                BNE     @loc_F5E
                 LDA     #256-4
-                BNE     loc_F64
-
-loc_F5E:
-                CMP     #DIRECTION::RIGHT
-                BNE     FIRE_GUN_rts
+                BNE     @loc_F64
+@loc_F5E:       CMP     #DIRECTION::RIGHT
+                BNE     @DO_BULLET_rts
                 LDA     #4
+@loc_F64:       STA     BULLET_SPEED,X
 
-loc_F64:
-                STA     BULLET_SPEED,X
                 LDA     #50
                 STA     BULLET_MAX_DISTANCE,X
                 LDA     #8
@@ -2213,10 +2043,10 @@ loc_F64:
                 STA     BULLET_XPOS,X
                 LDA     PM_YPOS,X
                 STA     BULLET_YPOS,X
-                JMP     FIRE_GUN_bullet_on_screen
+                JMP     @DO_BULLET_bullet_on_screen
 ; ---------------------------------------------------------------------------
 
-FIRE_GUN_move_bullet:
+@DO_BULLET_move_bullet:
                 LDA     BULLET_TILE_LSB,X
                 STA     pDEST_PTR
                 LDA     BULLET_TILE_MSB,X
@@ -2228,149 +2058,137 @@ FIRE_GUN_move_bullet:
                 STA     (pDEST_PTR),Y
                 STX     vTEMP1
                 LDA     BULLET_MAX_DISTANCE,X
-                BNE     loc_FA4
-                JMP     FIRE_GUN_move_bullet_next
+                BNE     :+
+                JMP     @DO_BULLET_move_bullet_next
 ; ---------------------------------------------------------------------------
 
-loc_FA4:
-                LDY     #PM_OBJECT::MUMMY
+:               LDY     #PM_OBJECT::MUMMY
                 CPX     #PM_OBJECT::PLAYER ; the actual player
-                BEQ     FIRE_GUN_scan_target_loop
+                BEQ     @DO_BULLET_scan_target_loop
                 LDY     #PM_OBJECT::PLAYER ; the actual player
 
-FIRE_GUN_scan_target_loop:
-                                        ; FIRE_GUN+C1↓j
+@DO_BULLET_scan_target_loop:
                 CPY     vTEMP1
-                BEQ     FIRE_GUN_scan_target_next
+                BEQ     @DO_BULLET_scan_target_next
                 LDA     CURRENT_ROOM
                 CMP     CURRENT_ROOM,Y
-                BEQ     loc_FC0
+                BEQ     @loc_FC0
 
-FIRE_GUN_scan_target_next:
-                                        ; FIRE_GUN+CE↓j ...
+@DO_BULLET_scan_target_next:
                 CPX     #PM_OBJECT::PLAYER ; the actual player
-                BNE     FIRE_GUN_move_bullet_next
+                BNE     @DO_BULLET_move_bullet_next
                 DEY
-                BNE     FIRE_GUN_scan_target_loop
-                BEQ     FIRE_GUN_move_bullet_next
+                BNE     @DO_BULLET_scan_target_loop
+                BEQ     @DO_BULLET_move_bullet_next
 
-loc_FC0:
-                LDA     BULLET_XPOS,X
+@loc_FC0:       LDA     BULLET_XPOS,X
                 SEC
                 SBC     PM_XPOS,Y
                 CMP     #5
-                BCS     FIRE_GUN_scan_target_next
+                BCS     @DO_BULLET_scan_target_next
+
                 LDA     BULLET_YPOS,X
                 SEC
                 SBC     PM_YPOS,Y
-                BPL     loc_FD6
+                BPL     :+
                 EOR     #$FF
-
-loc_FD6:
-                CMP     #7
-                BCS     FIRE_GUN_scan_target_next
+:               CMP     #7
+                BCS     @DO_BULLET_scan_target_next
                 LDA     DEATH_ANIM,Y
-                BNE     FIRE_GUN_scan_target_next
+                BNE     @DO_BULLET_scan_target_next
 
                 LDA     #32
                 STA     DEATH_ANIM,Y
                 CPY     #PM_OBJECT::PLAYER ; the actual player
-                BEQ     loc_FF2         ; Target was the player?
+                BEQ     :+           ; Target was the player?
                 LDA     BULLET_MAX_DISTANCE,Y
-                BMI     loc_FF2         ; Target was the player?
+                BMI     :+           ; Target was the player?
                 LDA     #0
                 STA     BULLET_MAX_DISTANCE,Y
-
-loc_FF2:
-                                        ; FIRE_GUN+F0↑j
+:
                 CPY     #PM_OBJECT::PLAYER ; Target was the player?
-                BNE     _add_y_times_5_to_score ; => no, the player hit the pharao or mummy
+                BNE     @add_y_times_5_to_score ; => no, the player hit the pharao or mummy
                 DEC     player_lives
                 JSR     SOUND_PLAY_on_CH4
                 LDA     #$FF
                 STA     vKeyCollectedWhenPositive
-                JMP     FIRE_GUN_remove_bullet_hit
+                JMP     @DO_BULLET_remove_bullet_hit
 ; ---------------------------------------------------------------------------
 
-_add_y_times_5_to_score:
+@add_y_times_5_to_score:
                 JSR     SOUND_PLAY_on_CH4
                 SED
 
-loc_1008:
-                LDA     #5
+@loop:          LDA     #5
                 CLC
                 ADC     SCORE
                 STA     SCORE
-                BCC     loc_1013
+                BCC     :+
                 INC     SCORE+1
-
-loc_1013:
+:
                 DEY
-                BPL     loc_1008
+                BPL     @loop
                 CLD
 
-FIRE_GUN_remove_bullet_hit:
+@DO_BULLET_remove_bullet_hit:
                 LDA     #$FF
                 STA     BULLET_MAX_DISTANCE,X
                 JSR     DRAW_TREASURES_LIVES
 
-FIRE_GUN_move_bullet_next:
+@DO_BULLET_move_bullet_next:
                 DEC     BULLET_MAX_DISTANCE,X
-                BMI     FIRE_GUN_remove_bullet
+                BMI     @DO_BULLET_remove_bullet
 
                 LDA     BULLET_XPOS,X
                 LDY     BULLET_SPEED,X
-                BMI     loc_103A
+                BMI     @loc_103A
                 CLC
                 ADC     #4
                 STA     BULLET_XPOS,X
                 INC     pDEST_PTR
-                BNE     loc_104B
+                BNE     @loc_104B
                 INC     pDEST_PTR+1
-                BNE     loc_104B
+                BNE     @loc_104B
 
-loc_103A:
-                SEC
+@loc_103A:      SEC
                 SBC     #4
                 STA     BULLET_XPOS,X
                 LDA     pDEST_PTR
                 SEC
                 SBC     #1
                 STA     pDEST_PTR
-                BCS     loc_104B
+                BCS     @loc_104B
                 DEC     pDEST_PTR+1
 
-loc_104B:
-                LDA     BULLET_XPOS,X
+@loc_104B:      LDA     BULLET_XPOS,X
                 CMP     #204
-                BCS     FIRE_GUN_remove_bullet
+                BCS     @DO_BULLET_remove_bullet
                 CMP     #44
-                BCS     FIRE_GUN_bullet_on_screen
+                BCS     @DO_BULLET_bullet_on_screen
 
-FIRE_GUN_remove_bullet:
+@DO_BULLET_remove_bullet:
                 LDA     #$FF
                 STA     BULLET_MAX_DISTANCE,X
                 RTS
 ; ---------------------------------------------------------------------------
 
-FIRE_GUN_bullet_on_screen:
+@DO_BULLET_bullet_on_screen:
                 LDY     #0
                 STY     MULT_40_TMP+1
                 LDA     (pDEST_PTR),Y
                 STA     vTEMP1
                 AND     #(~TILE::ACTION_FLAG) & $FF
                 CMP     #TILE::TRAP_0_left
-                BCC     loc_1078
+                BCC     @loc_1078
                 CMP     #TILE::BULLET_0
-                BCS     FIRE_GUN_remove_bullet
+                BCS     @DO_BULLET_remove_bullet
                 SEC
                 SBC     #TILE::TRAP_0_left
                 LSR     A
                 TAY
                 LDA     TRAP_ANIM_PHASE,Y ; 'TRAP' is the original name
-                BPL     FIRE_GUN_remove_bullet
-
-loc_1078:
+                BPL     @DO_BULLET_remove_bullet
+@loc_1078:
                 LDA     vTEMP1
                 STA     BULLET_SAVE_TILE,X
                 AND     #(~TILE::ACTION_FLAG) & $FF
@@ -2394,24 +2212,19 @@ loc_1078:
                 ADC     #7
                 TAX
                 LDY     #7
-
-loc_109D:
-                LDA     (MULT_40_TMP),Y ; load current bitmap from character
+@loop2:         LDA     (MULT_40_TMP),Y ; load current bitmap from character
                 CPY     SUBPIXEL_Y
-                BNE     loc_10AD        ; create bullet character
+                BNE     @loopj          ; create bullet character
                 CMP     #%00000000      ; nothing in the bitmap?
-                BEQ     loc_10AB        ; ; correct => add the bullet
+                BEQ     :+              ; correct => add the bullet
                 LDX     vTEMP1
-                BPL     FIRE_GUN_remove_bullet ; otherwise remove the bullet
+                BPL     @DO_BULLET_remove_bullet ; otherwise remove the bullet
+:               ORA     #%00000100      ; add the bullet to the bitmap
+@loopj:         STA     FONT_BASE_1800_68_BULLET,X ; create bullet character
 
-loc_10AB:
-                ORA     #%00000100      ; add the bullet to the bitmap
-
-loc_10AD:
-                STA     FONT_BASE_1800_68_BULLET,X ; create bullet character
                 DEX
                 DEY
-                BPL     loc_109D        ; load current bitmap from character
+                BPL     @loop2          ; load current bitmap from character
                 INY
                 LDA     vTEMP1
                 TAX
@@ -2431,31 +2244,28 @@ loc_10AD:
 .proc SOUND_PLAY_on_CH4
                 LDA     #(HUE_YELLOW<<4)|14
                 CPY     #SOUND_EFFECT::WINGED_AVENGER_SHOT
-                BCS     loc_10D1
+                BCS     :+
                 STA     PCOLR1,Y        ; P1 COLOR
-
-loc_10D1:
+:
                 LDA     #>SND_EFFECT_LOST_LIFE
                 STA     SND_PTR+1       ; Ptr to frequency table when playing a sound effect
                 LDA     SND_TABLE_LSB,Y
                 STA     SND_PTR         ; Ptr to frequency table when playing a sound effect
                 STY     SND_save_Y
                 LDY     #7
-
-loc_10DF:
-                LDA     (SND_PTR),Y     ; Ptr to frequency table when playing a sound effect
+@loop:          LDA     (SND_PTR),Y     ; Ptr to frequency table when playing a sound effect
                 STA     AUDF4
                 LDA     #AUDC_POLYS_NONE|3
                 STA     AUDC4
+
                 LDA     #256-4
                 STA     RTCLOK+2        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
+:               LDA     RTCLOK+2        ; 1/15s delay
+                BNE     :-
 
-_small_delay_:
-                LDA     RTCLOK+2        ; 1/15s delay
-                BNE     _small_delay_
                 STA     ATRACT          ; ATTRACT MODE FLAG
                 DEY
-                BPL     loc_10DF
+                BPL     @loop
                 LDY     SND_save_Y
                 LDA     #0
                 STA     AUDC4
@@ -2952,7 +2762,7 @@ BULLET_XPOS:    .BYTE   0,  0,  0,  0
 PM_YPOS:        .BYTE 184,192,204,180
 BULLET_YPOS:    .BYTE   0,  0,  0,  0
 vKeyCollectedWhenPositive:.BYTE $FF
-vGateOpenAnimationCounter:.BYTE $FF
+vGateOpenPosition:.BYTE $FF
 
 PLAYER_IMG_MSB: .BYTE >PM_GRAPHICS_1100_PLAYER
                 .BYTE >PM_GRAPHICS_1200_PHARAOH
@@ -3046,522 +2856,7 @@ vPlayer_counter_b:.BYTE  $FF, $FF, $FF, $FF
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse Level Data
 ; ---------------------------------------------------------------------------
-.assert * = $2000, error, "Level maps not at $2000"
-LEVEL_MAP_0:    .BYTE  $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29
-                .BYTE  $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29
-                .BYTE  $29, $2B, $2D, $31, $31, $2E, $31, $2E, $31, $2E, $2E, $2F, $29, $29, $29, $29, $30, $31, $2E, $2E, $31, $2E, $2F, $29, $29, $29, $29, $29, $29, $29, $30, $31, $2E, $31, $2E, $2E, $31, $2E, $2F, $29
-                .BYTE  $30, $31,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2E, $2F, $30, $31,   0,   0,   0,   0,   0,   0,   0, $2E, $2F, $29, $2C, $30, $31, $31,   0,   0,   0,   0,   0,   0,   0,   0, $3B, $29
-                .BYTE    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2E, $31,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $39, $29
-                .BYTE    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2E, $2F
-                .BYTE    1, $27, $26, $25, $24, $23, $22, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $E0, $E1, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21,   0,   0,   0, $22, $23, $24, $25, $26,   1
-                .BYTE  $32, $32, $32, $33, $33, $32, $33, $32, $32, $34, $35, $32, $33, $34, $35, $32, $33, $32, $2B,   0,   0, $2C, $29, $32, $32, $30, $31,   9,   4,   5,   6,   0,   0,   0, $2E, $2F, $32, $33, $34, $35
-                .BYTE  $2F, $2D, $2D, $30, $2F, $2D, $30, $31, $2F, $29, $29, $29, $29, $29, $29, $29, $29, $30, $31,   0,   0,   0, $2E, $31, $31,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2E, $2F, $29, $29
-                .BYTE    0,   0,   0,   0,   0,   0,   0,   0,   0, $2E, $2F, $30, $30, $2D, $30, $31, $36,   0,   0,   0,   0, $22, $22, $22, $E0, $E1, $22, $1C, $1D, $26, $26, $26, $26, $16, $17, $18,   0,   0, $5B, $5B
-                .BYTE    0,   0,   0,   0,   0, $DE, $DF,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2C, $29, $32, $33, $32, $33, $32, $33, $33, $33, $32, $32, $32, $33, $34, $35, $32, $32, $32
-                .BYTE    1,   1,   0,   0,   1,   1,   1,   1,   1,   1, $27, $26, $25, $24, $23, $22, $22, $E4, $E5,   0,   0, $2C, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29
-                .BYTE 138, 223, 124
-                .BYTE 126, 216, 128, 70, 197, 113, 45, 104
-                .BYTE 6|(HUE_YELLOWGREEN<<4), 6|(HUE_YELLOWRED<<4), 4|(HUE_CYAN<<4)
-                .BYTE 0, 0
-                .BYTE %11111111
-                .BYTE %00111111
-                .BYTE %11001111
-                .BYTE %11000011
-                .BYTE %00110011
-                .BYTE %00001111
-                .BYTE %00000011
-                .BYTE %00111111
-                .BYTE %11111111
-                .BYTE %11111100
-                .BYTE %11110011
-                .BYTE %11000011
-                .BYTE %11001100
-                .BYTE %11110000
-                .BYTE %11000000
-                .BYTE %11111100
-
-LEVEL_MAP_1:    .BYTE  $2B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0,   0, $22, $22, $22, $22,   0,   0, $22, $22, $22, $22, $22, $22, $22, $E0, $E1, $22, $22, $22, $22, $22,   0,   0, $22, $22, $22, $22, $22, $22, $22,   0,   0,   0,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0,   0,   0, $50,   1, $57,   0,   0,   0, $46, $47, $47, $47, $47, $45,   0,   0, $46, $47, $47, $45,   0,   0,   0, $5A, $47, $47, $47, $47, $51,   0,   0,   0,   0,   0, $2C
-                .BYTE    0,   0,   0,   0,   0,   0,   0, $50,   1, $57,   0,   0,   0, $46, $47, $47, $47, $47, $45,   0,   0,  $E, $10, $10,   8,   0,   0,   0, $5A, $47, $47, $47, $47, $51,   0,   0,   0,   0,   0,   0
-                .BYTE  $22, $22,   0,   0,   0,   0,   0, $50,   1, $57,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $56, $56, $56, $56, $56, $56, $5A, $47, $47, $47, $47, $51,   0,   0,   0,   0, $22, $22
-                .BYTE  $2B,   0,   0,   0,   0,   0,   0, $50,   1, $57, $56, $56,   0, $DE, $DF,   0,   0,   0,   0,   0,   0, $46, $47, $47, $47, $47, $47, $47, $47, $47, $47, $47, $47, $51,   0,   0,   0,   0,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0,   0,   0, $50,   1,   1,   1,   1,   1,   1,   1,   1,   1, $15, $16,   0,   0, $46,   1,   1, $40, $41, $40, $41, $40, $41, $40, $41,   1, $51,   0,   0,   0,   0,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0,   0,   0, $50, $47, $47, $3D, $3F, $3D, $3F, $3D, $3F, $47, $47, $45,   0,   0, $46, $47, $47,   1,   1,   1,   1,   1,   1,   1,   1, $47, $51,   0,   0,   0,   0,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0,   0,   0, $50, $4F, $4F, $4F, $4F, $4F, $4F, $4F, $4F, $4F, $4F, $45,   0,   0, $46, $4F, $4F, $4F, $4F, $4F, $4F, $4F, $4F, $4F, $4F, $4F, $53,   0,   0,   0,   0,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $4B, $4B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $4C, $4C,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $4B, $4B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $4C, $4C,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2C
-                .BYTE  $2B, $22, $22, $22, $22, $22, $23, $24, $25, $26, $27,   1,   1, $27, $26, $25, $24, $23, $22, $E0, $E1, $22, $23, $24, $25, $26, $27,   1,   1, $27, $26, $25, $24, $23, $22, $22, $22, $22, $22, $2C
-                .BYTE 60, 223, 124
-                .BYTE 178, 32, 125, 16, 200, 88, 47, 88
-                .BYTE 10|(HUE_YELLOWRED<<4), 4|(HUE_BLUE2<<4), 2|(HUE_BLUE2<<4)
-                .BYTE 0, 0
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00001100
-                .BYTE %00110011
-                .BYTE %11001111
-                .BYTE %00111111
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00110011
-                .BYTE %11111111
-LEVEL_MAP_2:    .BYTE  $38,   0, $DE, $DF,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $39, $2A, $38,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $3B, $29, $29, $29, $29
-                .BYTE  $2B,   1,   1,   1, $27, $15, $25, $16, $23, $17, $22, $18,   0,   0, $5A, $29, $2B, $22, $22, $22, $E0, $E1, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22,   0,   0,   0, $2E, $2F, $30, $31
-                .BYTE  $2B,   4,   5,   6,   0,   0,   0,   0,   0, $28,   0,   0,   0,   0, $5A, $47, $47, $47, $47, $45,   0,   0, $46, $47, $47, $47, $47, $47, $47, $47, $47, $47, $47,   0,   0,   0,   0,   0,   0,   0
-                .BYTE  $2B,   0,   0,   0, $56, $56, $56, $56, $56, $56, $56,   0,   0,   0, $5A,   1, $42, $43,   1, $45,   0,   0, $46,   1, $3D, $3F,   1, $3D, $3E,   1, $3D, $3F,   1,   0,   0,   0,   0,   0,   0, $22
-                .BYTE  $2B,   0,   0,   0, $28,   0,   0,   0,   0,   0,   0,   0,   0,   0, $10, $11, $12, $13, $14, $45,   0,   0, $46, $44, $44, $44, $44, $44, $44, $44, $44, $44, $44,   0,   0,   0,   0,   0, $39, $29
-                .BYTE  $2B, $17, $18,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $F0,   0, $F1,   0, $F2,   0, $F3,   0,   0,   0,   0,   0,   0,  $E, $2F, $29
-                .BYTE    1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1, $27, $27, $26, $25, $25, $24, $23, $E0, $E1, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23,   0,   0,   0, $2C
-                .BYTE  $47, $47, $47, $47, $47, $47, $47, $47, $47, $47, $47, $47, $47, $47, $47, $47, $47, $47, $47, $45,   0,   0, $46, $47, $47, $47, $47, $47, $47, $47, $47, $47, $47, $47, $47, $47,   0,   0,   0, $2C
-                .BYTE    1,   1, $3D, $3F,   1,   1,   1,   1, $3D, $3E,   1,   1,   1,   1, $3D, $3F,   1,   1,   1, $45,   0,   0, $46,   1,   1, $40, $41,   1,   1,   1,   1, $42, $43,   1,   1,   1,   0,   0,   0, $2C
-                .BYTE  $44, $44, $44, $44, $44, $44, $44, $44, $44, $44, $44, $44, $44, $44, $44, $44, $44, $44, $44, $45,   0,   0, $46, $44, $44, $44, $44, $44, $44, $44, $44, $44, $44, $44, $44, $44,   0,   0,   0, $2C
-                .BYTE  $5B, $5B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2E
-                .BYTE    1,   1,   1,   1, $27, $26, $25, $24, $23, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $E0, $E1, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22
-                .BYTE 58, 223, 128
-                .BYTE 200, 203, 128, 24, 201, 75, 55, 192
-                .BYTE 10|(HUE_GOLDORANGE<<4), 6|(HUE_BLUEGREEN<<4), 4|(HUE_ORANGE<<4)
-                .BYTE 0, 0
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00001111
-                .BYTE %00000011
-                .BYTE %00000011
-                .BYTE %00001111
-                .BYTE %00111111
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %11000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %11000000
-                .BYTE %11110000
-LEVEL_MAP_3:    .BYTE  $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $30, $31, $37, $2F, $30, $31, $36, $36, $37, $36, $37, $36, $37, $36, $37, $2E, $31, $2E, $2F, $29, $29, $29, $29, $29, $29, $29
-                .BYTE  $2E, $2E, $31, $31, $2E, $31, $31, $2E, $31, $36, $36, $36, $36, $36,   0,   0,   0,   0,   0,   0,   0,   0,   0, $1B, $E0, $E1, $22, $22, $56,   0, $DE, $DF, $3B, $29, $29, $29, $29, $29, $29, $2B
-                .BYTE  $22, $22, $22, $22, $22,   0,   0,   0, $22, $22, $22, $22, $22, $22, $22, $22,   0,   0,   0,   0,  $E, $34, $34, $34,   0,   0,   0, $2E, $2F, $32, $32, $32, $32, $29, $29, $29, $29, $29, $29, $2B
-                .BYTE  $32, $32, $32, $32, $32, $38,   0,   0, $2E, $2F, $30, $31, $28,   0, $2E, $2F, $3A,   0,   0,   0,   0,   0, $2C, $2B,   0,   0,   0,   0,   0, $2E, $2F, $29, $29, $29, $29, $29, $29, $29, $29, $2B
-                .BYTE  $29, $30, $31, $2F, $29, $29, $38, $56,   0,   0,   0,   0, $28,   0,   0, $39, $38,   0,   0,   0,   0,   0, $2C, $2B,   0,   0,   0,   0,   0,   0, $3B, $29, $29, $29, $29, $29, $29, $29, $29, $2B
-                .BYTE  $2B,   0,   0,   0, $2E, $2F, $30, $31,   0,   0,   0,   0, $28,   0,   0, $5A, $29, $3A,   0,   0,   0,   0, $2C, $2B,   0,   0,   0,   0,   0,   0, $39, $29, $29, $29, $29, $29, $29, $29, $29, $2B
-                .BYTE  $2B,   0,   0,   0, $56, $56,   0,   0, $DC, $DD,   0,   0, $56, $56, $22, $5A, $29, $3A,   0,   0,   0,   0, $2C, $2B,   0,   0,   0,   0,   0, $3B, $29, $29, $29, $29, $29, $29, $29, $29, $29, $2B
-                .BYTE  $2B,   0,   0,  $E, $32, $32, $32, $32, $32, $32, $32, $32, $32, $32, $29, $30, $31,   0,   0,   0,   0,   0, $2C, $2B,   0,   0,   0,   0,   0,   0, $2E, $2F, $29, $29, $29, $29, $29, $29, $29, $2B
-                .BYTE  $2B,   0,   0,   0, $2E, $2F, $29, $29, $29, $29, $29, $29, $29, $29, $29, $3A,   0,   0,   0,   0,   0,   0, $2C, $2B,   0,   0,   0,   0,   0,   0,   0,   0, $2E, $2F, $29, $29, $29, $29, $30, $31
-                .BYTE  $29, $38,   0,   0,   0,   0, $2E, $2F, $2D, $31, $2E, $2F, $2D, $30, $31,   0,   0,   0,   0,   0,   0,   0, $2C, $2B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2E, $2F, $30, $31,   0,   0
-                .BYTE  $4B, $4B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $36, $36,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
-                .BYTE    1,   1, $27, $26, $25, $24, $23, $22, $22, $22, $22, $22, $22, $22, $E2, $E3, $22, $22, $22, $22, $22, $22, $22, $22, $E0, $E1, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22
-                .BYTE 57, 223, 144
-                .BYTE 201, 203, 156, 31, 203, 202, 56, 192
-                .BYTE 6|(HUE_GREY<<4), 6|(HUE_CYAN<<4), 12|(HUE_BLUE<<4)
-                .BYTE 0, 0
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00001111
-                .BYTE %00110000
-                .BYTE %11000000
-                .BYTE %00111111
-                .BYTE %11001111
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %11000000
-                .BYTE %00110000
-                .BYTE %11000000
-                .BYTE %00110000
-LEVEL_MAP_4:    .BYTE  $29, $29, $30, $31, $36, $37, $37, $37, $37, $37, $36, $36, $37, $37, $36, $37, $36, $37,   0,   0,   0,   0,   0,   0,   0, $37, $36, $37, $36, $37, $37, $36, $37, $36, $36, $37, $2E, $2F, $29, $29
-                .BYTE  $29, $31,   0,   0, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $E0, $E1, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21,   0,   0, $2E, $2F
-                .BYTE  $2B,   0,   0,   0, $2E, $2F, $29, $29, $29, $29, $29, $29, $29, $29, $29, $30, $31, $36,   0,   0, $3B, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $30, $31, $36,   0,   0,   0,   0
-                .BYTE  $29, $38,   0,   0,   0,   0, $2E, $2F, $29, $29, $29, $29, $29, $29, $29, $3A,   0,   0,   0,   0,   0, $2E, $2F, $29, $29, $29, $29, $29, $29, $29, $29, $30, $31,   0,   0,   0,   0,   0,   0, $39
-                .BYTE  $29, $29, $38,   0,   0,   0,   0,   0, $2E, $2F, $2D, $30, $31, $36, $37,   0,   0,   0,   0,   0,   0,   0,   0, $2E, $2F, $2D, $2D, $30, $31, $37, $36,   0,   0,   0,   0,   0, $39, $2A, $2A, $29
-                .BYTE  $36, $37, $37,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $36, $37, $37, $2F
-                .BYTE  $21, $21, $21, $18,   0,   0, $1B, $21, $21, $21, $21, $21, $21, $21, $21, $21, $E2, $E3, $E0, $E1, $E4, $E5, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21, $21
-                .BYTE  $32, $32, $32, $33,   0,   0, $33, $33, $34, $33, $33, $33, $34, $34, $34,   1,   1,   1,   0,   0,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1
-                .BYTE  $29, $29, $29, $2B,   0,   0, $2C, $29, $29, $29, $29, $29, $29, $29, $29, $32, $34,   1,   0,   0,   1,   1, $34, $34, $34, $33, $33, $32, $32, $32, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29
-                .BYTE  $29, $29, $29, $2B,   0,   0, $2C, $30, $31, $2E, $2E, $2E, $2F, $29, $29, $29, $29, $34,   0,   0,   1, $35, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29
-                .BYTE  $29, $29, $29, $2B,   0,   0,   0,   0, $DE, $DF,   0,   0,   0, $5A, $29, $29, $29, $2B,   0,   0, $2C, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29
-                .BYTE  $29, $29, $29, $29, $32, $32, $32, $32, $32, $32,   0,   0,   0, $5A, $29, $29, $29, $2B,   0,   0, $2C, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29
-                .BYTE 32, 223, 120
-                .BYTE 122, 220, 140, 28, 200, 119, 45, 119
-                .BYTE 8|(HUE_GREY<<4), 6|(HUE_BLUEGREEN2<<4), 4|(HUE_CYAN<<4)
-                .BYTE 0, 0
-                .BYTE %00000000
-                .BYTE %00000011
-                .BYTE %00001111
-                .BYTE %00000011
-                .BYTE %00001111
-                .BYTE %00000011
-                .BYTE %00001111
-                .BYTE %00111111
-                .BYTE %11000000
-                .BYTE %11110000
-                .BYTE %11111100
-                .BYTE %11110000
-                .BYTE %11111100
-                .BYTE %11110000
-                .BYTE %11111100
-                .BYTE %11111111
-LEVEL_MAP_5:    .BYTE  $2B,   0, $DE, $DF,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $56, $56, $56, $56, $56, $56, $56, $56, $56, $56, $56, $56, $56, $56, $56, $56, $56, $56,   0,   0,   0,   0, $2C
-                .BYTE  $2B,   3,   4,  $A,  $B,   3,   4,   5,   9,  $A,   4,   5,   9,  $A,  $B,  $C,   1,   1,   2,   3,   4,   5,   9,  $A,  $B,   3,   4,   5,   9,  $A,  $B,   3,   4,   5, $28,   0,   0,   0,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $5B, $5B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $56, $56, $56, $56, $56, $1B, $1C, $1D, $2C
-                .BYTE  $2B,   0,   0,   0, $28, $11, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10
-                .BYTE  $2B, $26, $24, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48,   0,   0,   0, $48, $48, $48, $48, $48, $48, $48
-                .BYTE  $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10,   0,   0,   0, $10, $10, $10, $10, $10, $10, $10
-                .BYTE  $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48,   0,   0,   0, $48, $E0, $E1, $48
-                .BYTE  $32, $33, $34, $34, $34, $34, $33, $32, $32, $33, $34, $34, $34, $35, $3A, $2E, $31, $36, $2E, $36, $37, $36, $37, $36, $36, $2E, $31, $36, $36, $2E, $31,   0,   0,   0,   0,   0, $2B,   0,   0, $2C
-                .BYTE  $29, $30, $31, $2E, $2F, $2D, $30, $36, $36, $2E, $31, $31, $2E, $31,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $22, $22, $23, $23, $24, $24, $26, $26, $2B,   0,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $22, $22, $23, $23, $24, $24, $25, $25, $26, $26,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1, $2B,   0,   0, $2C
-                .BYTE  $2B, $DC, $DD,   0,   0,   0,   0,   0,   0,   0, $1B, $1C, $1D, $38,   0,   0,   0, $37, $37, $37, $36, $37, $36, $37, $37, $36, $36, $37, $37, $37, $36, $37, $37, $37, $37, $37, $36,   0,   0, $2C
-                .BYTE  $2B, $27, $26, $25,   0,   0, $25, $26, $27,   1,   1,   1,   1, $29, $38, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $E0, $E1, $2C
-                .BYTE 140, 223, 196
-                .BYTE 69, 215, 124, 20, 200, 88, 45, 119
-                .BYTE 10|(HUE_GOLDORANGE<<4), 6|(HUE_BLUE2<<4), 6|(HUE_ORANGE<<4)
-                .BYTE 0, 0
-                .BYTE %00000000
-                .BYTE %00000011
-                .BYTE %00001111
-                .BYTE %00000011
-                .BYTE %00001111
-                .BYTE %00000011
-                .BYTE %00001111
-                .BYTE %00111111
-                .BYTE %11000000
-                .BYTE %11110000
-                .BYTE %11111100
-                .BYTE %11110000
-                .BYTE %11111100
-                .BYTE %11110000
-                .BYTE %11111100
-                .BYTE %11111111
-LEVEL_MAP_6:    .BYTE  $2B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2C
-                .BYTE  $37,   0,   0,   0,   0,   0,   0, $22, $22, $22, $22, $22, $22, $22, $22, $22,   0,   0,   0,   0, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $E0, $E1, $22, $2C
-                .BYTE  $22, $22, $22,   0,   0,   0,   0,   0, $3B, $32, $32, $33, $34, $34, $35, $3A,   0,   0,   0,   0, $3B, $32, $32, $33, $34, $32, $34, $33, $34, $34, $35, $32, $34, $35, $29, $38,   0,   0,   0, $2C
-                .BYTE  $2B, $30, $31,   0,   0,   0,   0,   0,   0, $2E, $2F, $29, $29, $30, $31,   0,   0,   0,   0,   0,   0, $2E, $2F, $29, $29, $29, $29, $29, $2D, $2D, $2D, $29, $29, $29, $29, $3A,   0,   0,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2C, $2B,   0,   0,   0,   0,   0,   0,   0,   0,   0, $3B, $29, $29, $29, $30, $31,   0,   0,   0, $2E, $2F, $30, $31,   0,   0,   0,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $4B, $4B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $37, $37, $37,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2E
-                .BYTE  $5B,   0,   0,   0, $56, $22, $23, $24, $25, $26, $27,   1,   1, $27, $26, $25, $24, $23, $22, $22, $22, $22,   0,   0,   0,   0, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22,   0,   0,   0, $22
-                .BYTE  $34, $33, $32, $32, $33, $34, $34, $35, $30, $31, $36, $36, $36, $36, $36, $36, $36, $36, $36, $36, $36, $36,   0,   0,   0,   0, $2C, $32, $32, $33, $34, $33, $34, $34, $35, $3A,   0,   0,   0, $3B
-                .BYTE  $29, $29, $29, $29, $29, $29, $30, $31,   0,   0,   0,   0,   0,   0,   0,   0, $DC, $DD,   0,   0,   0,   0,   0,   0,   0, $39, $29, $29, $29, $29, $29, $29, $29, $29, $29, $3A,   0,   0,   0, $3B
-                .BYTE  $29, $29, $29, $29, $29, $29, $3A,   0,   0,   0,  $E, $32, $32, $32, $32, $32, $32, $32, $32, $32, $32, $32, $32, $32, $32, $30, $31, $2E, $31, $31, $37, $37, $36, $37, $36,   0,   0,   0,   0, $3B
-                .BYTE  $29, $29, $29, $29, $29, $29, $38,   0,   0,   0,   0, $37, $36, $36, $36, $36, $36, $36, $36, $36, $36, $36, $36, $36, $36,   0,   0,   0,   0, $DE, $DF,   0,   0,   0,   0,   0,   0,   0,   0, $3B
-                .BYTE  $29, $29, $29, $29, $29, $29, $2B, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $1C, $1D, $1E,   1,   1, $15, $16, $17, $22, $22, $E0, $E1, $22, $39
-                .BYTE 58, 223, 192
-                .BYTE 49, 62, 129, 28, 202, 119, 47, 127
-                .BYTE 6|(HUE_YELLOWRED<<4), 10|(HUE_REDORANGE<<4), 12|(HUE_CYAN<<4)
-                .BYTE 0, 0
-                .BYTE %00000000
-                .BYTE %00110000
-                .BYTE %11000000
-                .BYTE %11001111
-                .BYTE %11111111
-                .BYTE %00111100
-                .BYTE %11110011
-                .BYTE %11000000
-                .BYTE %00000000
-                .BYTE %00110011
-                .BYTE %00111111
-                .BYTE %11111111
-                .BYTE %11111100
-                .BYTE %11001100
-                .BYTE %00110011
-                .BYTE %11000011
-LEVEL_MAP_7:    .BYTE    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
-                .BYTE    0,   0,   0,   0,   0, $48, $48, $48, $48, $48, $48, $48, $18, $DE, $DF, $1B, $48, $48, $48, $E0, $E1, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48,   0,   0,   0,   0
-                .BYTE    0,   0,   0,   0,   0,   0,   9, $10, $11, $12, $13,  $C, $47, $47, $47, $47,   1,   1, $45,   0,   0, $46,   1,   1,   1,   1,   1,   1,   1, $14, $13, $12, $11, $10,   5,   0,   0,   0,   0,   0
-                .BYTE  $22,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   9,  $A,  $B,  $C,   1,   1, $45,   0,   0, $46,   1,   1,   2,   3,   4,   5,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $22
-                .BYTE  $54, $55,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  $E,  $F, $45,   0,   0, $46,   7,   8,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $55, $54
-                .BYTE  $54, $54, $55,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $55, $54, $54
-                .BYTE  $54, $54, $54, $54, $55,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $55, $54, $54, $54, $54
-                .BYTE  $54, $54, $54, $54, $54, $54, $55,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $55, $54, $54, $54, $54, $54, $54
-                .BYTE  $54, $54, $54, $54, $54, $54, $54, $54, $55,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $55, $54, $54, $54, $54, $54, $54, $54, $54
-                .BYTE  $54, $54, $54, $54, $54, $54, $54, $54, $54, $54, $55,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $55, $54, $54, $54, $54, $54, $54, $54, $54, $54, $54
-                .BYTE  $54, $54, $54, $54, $54, $54, $54, $54, $54, $54, $54, $54, $54, $55,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $55, $54, $54, $54, $54, $54, $54, $54, $54, $54, $54, $54, $54, $54
-                .BYTE  $54, $54, $54, $54, $54, $54, $54, $54, $54, $54, $54, $54, $54, $54, $54, $54, $55, $55, $55,   0,   0, $55, $55, $55, $54, $54, $54, $54, $54, $54, $54, $54, $54, $54, $54, $54, $54, $54, $54, $54
-                .BYTE 62, 223, 125
-                .BYTE 123, 220, 126, 18, 202, 72, 46, 71
-                .BYTE 6|(HUE_CYAN<<4), 4|(HUE_BLUE<<4), 12|(HUE_GOLDORANGE<<4)
-                .BYTE 0, 0
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00110000
-                .BYTE %11001100
-                .BYTE %00111111
-                .BYTE %00001111
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00110000
-                .BYTE %11001100
-                .BYTE %00000000
-LEVEL_MAP_8:    .BYTE  $29, $29, $29, $29, $29, $29, $29, $29, $30, $2F, $30, $2D, $2D, $30, $31, $36, $36,   0,   0,   0, $28,   0,   0,   0,   0,   0,   0, $39, $2B,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1
-                .BYTE  $29, $29, $29, $29, $29, $29, $30, $31,   0,   0,   0,   0,   0,   0, $56, $22, $22, $E2, $E3, $22, $22, $22, $1C, $24, $1D, $1E, $14,   3,   4,   5,   0,   0,   0,  $E,   8,   0,   0,  $E,   8,   0
-                .BYTE  $29, $29, $29, $29, $29, $29, $3A,   0,   0,   0, $1C, $25, $1D,   3,   4,   6,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $1B, $22, $22, $22, $22, $22, $22
-                .BYTE  $29, $29, $29, $29, $29, $29, $38,   0,   0,   0, $28,   0,   0,   0,   0, $1B, $22, $22, $18,   0,   0,   0, $1B, $22, $22, $22, $22, $23, $24, $25, $26, $27, $27, $35, $57,   0, $28,   0,   0, $3B
-                .BYTE  $29, $29, $29, $29, $29, $29, $29, $38, $22, $1C, $24, $1D, $26, $1E,   1,   1,   1, $33, $4B, $4B,   0, $4C, $4C, $32, $32, $34, $34, $35, $32, $32, $33, $34, $35, $30, $57,   0, $28,   0,   0, $39
-                .BYTE  $2E, $2F, $29, $29, $29, $29, $29, $29, $32, $33, $34, $33, $34, $34, $33, $34, $35, $29, $4B, $4B,   0, $4C, $4C, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $3A,   0,   0, $28,   0, $3B, $29
-                .BYTE    0,   0, $2E, $2F, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $4B, $4B,   0, $4C, $4C, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $3A,   0,   0, $28,   0, $3B, $29
-                .BYTE    0,   0,   0, $3B, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $2D, $2D, $2D, $2D, $31,   0, $2E, $2F, $2D, $2D, $2D, $29, $29, $29, $29, $29, $29, $29, $3A,   0,   0, $28,   0, $39, $29
-                .BYTE    0,   0,   0,   0, $2E, $2F, $29, $29, $29, $29, $29, $29, $29, $29, $29, $38, $E0, $E1, $E2, $E3, $E4, $E5, $E6, $E7, $22, $39, $29, $29, $29, $29, $29, $29, $29, $3A,   0,   0, $28,   0, $2E, $2F
-                .BYTE  $38,   0,   0,   0,   0,   0, $2E, $2F, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $30, $2F, $29, $29, $29, $30, $2F, $30, $30, $31, $2F, $29, $29, $29, $29, $3A,   0,   0, $28,   0,   0, $3B
-                .BYTE  $29, $38,   0,   0,   0,   0,   0,   0, $2E, $2F, $2D, $2D, $2D, $2D, $2D, $2D, $2D, $31,   0,   0, $2E, $2E, $31,   0, $DE, $DF,   0,   0,   0, $2E, $2F, $2D, $2D, $31,   0,   0, $28,   0,   0, $39
-                .BYTE  $29, $29, $38, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22,   0,   0, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $39, $29
-                .BYTE 67, 75, 0, 116
-                .BYTE 215, 117, 29, 198, 59, 48, 161
-                .BYTE 4|(HUE_GREY<<4), 8|(HUE_BLUE<<4), 4|(HUE_CYAN<<4)
-                .BYTE 0, 0
-                .BYTE %00000011
-                .BYTE %00000000
-                .BYTE %00000011
-                .BYTE %00000011
-                .BYTE %00001111
-                .BYTE %00001100
-                .BYTE %00001100
-                .BYTE %00000011
-                .BYTE %00000000
-                .BYTE %11000000
-                .BYTE %00000000
-                .BYTE %11000000
-                .BYTE %11110000
-                .BYTE %00110000
-                .BYTE %00110000
-                .BYTE %11000000
-LEVEL_MAP_9:    .BYTE  $2B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0,   0, $48, $48, $48, $48, $48, $48, $22,   0,   0, $22, $48, $48, $48, $48, $48, $48, $E0, $E1, $48, $48, $48, $48, $48, $48, $48, $48, $48, $48,   0,   0,   0,   0,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0,   0,   0, $50, $47, $47, $47, $47, $51,   0,   0, $50, $47, $47, $47, $47, $47, $51,   0,   0, $50, $47, $47, $47, $47, $47, $47, $47, $51,   0,   0,   0,   0,   0,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0,   0,   0, $50, $47, $47, $47, $47, $51, $DE, $DF, $50, $47, $47, $47, $47, $47, $51,   0,   0, $50, $47, $47, $47, $47, $47, $47, $47, $51,   0,   0,   0,   0,   0,   0, $2C
-                .BYTE    0,   0,   0,   0,   0,   0,   0, $50, $47, $3D, $41, $47, $51,   0,   0, $52, $4F, $4F, $4F, $4F, $4F, $53,   0,   0, $50, $47, $40, $4A, $47, $49, $41, $47, $51,   0,   0,   0,   0,   0,   0,   0
-                .BYTE  $56, $56, $56,   0,   0,   0,   0, $50, $47, $47, $47, $47, $51,   0,   0,   0,   0, $F1,   0,   0, $F2,   0,   0,   0, $50, $47, $47, $47, $47, $47, $47, $47, $51,   0,   0,   0,   0, $56, $56, $56
-                .BYTE  $2B,   7,   8,   0,   0,   0,   0, $50, $47, $40, $3E, $47, $51, $23, $23, $23, $23, $23, $23, $23, $23, $23,   0,   0, $50, $47, $49, $4A, $47, $42, $41, $47, $51,   0,   0,   0,   0,  $E,  $F, $2C
-                .BYTE  $2B,   0,   0,   0,   0,   0,   0, $50, $47, $47, $47, $47, $47, $47, $47, $47, $47, $47, $47, $47, $47, $51,   0,   0, $50, $47, $47, $47, $47, $47, $47, $47, $51,   0,   0,   0,   0,   0,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0,  $E,  $F, $50, $47, $3D, $3D, $3D, $3D, $3D, $3E, $3E, $3E, $3F, $3F, $3F, $47, $51,   0,   0, $50, $47, $40, $41, $47, $42, $43, $47, $53,   7,   8,   0,   0,   0,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0,   0,   0,   0,  $E,  $F, $44, $44, $44, $44, $44, $44, $44, $44, $44,   7,   8,   0,   0,   0,   0,  $E,  $F, $44, $44, $44,   7,   8,   0,   0,   0,   0, $22, $22, $22, $2C
-                .BYTE  $2B,   7,   8,   0,   0,   0,   0,   0,   0,   0,   0, $F0,   0, $F1,   0, $F2,   0, $F3,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $5B,   0,   0, $2C
-                .BYTE  $2B, $22, $22, $22, $22, $E2, $E3, $22, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $22, $E0, $E1, $22, $22, $22, $22, $22, $22, $22, $1C, $1D, $1E,   1,   1,   1,   0,   0, $2C
-                .BYTE 58, 220, 136
-                .BYTE 193, 200, 138, 25, 200, 105, 46, 105
-                .BYTE 8|(HUE_YELLOWRED<<4), 6|(HUE_ORANGE<<4), 2|(HUE_BLUE2<<4)
-                .BYTE 0, 0
-                .BYTE %00000000
-                .BYTE %00111100
-                .BYTE %11000011
-                .BYTE %00111100
-                .BYTE %00001111
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000011
-                .BYTE %00001111
-                .BYTE %11001111
-                .BYTE %00111100
-                .BYTE %11110000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-LEVEL_MAP_10:   .BYTE  $2B,   0,   0,   0, $DE,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2C
-                .BYTE  $2B,   0,   0,   0, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E,   0,   0,   0, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $26, $16, $17,   0,   0,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $28,   0,   0,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0, $28,   7,   8,   0,   0,   0,   0, $28,   7,   8,   0,   0,   0,   0,   0,   0,   0,   0, $28,   7,   8,   0,   0,   0,   0,   0,   0,   0,   0,   0, $28,   0,   0,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0, $28,   0,   0,   0,   0,   0,   0, $28,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $28,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $28,   0,   0,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0, $28,   0,   0,   0,   0,   0,   0, $28,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $28,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $28,   0,   0,   0, $2C
-                .BYTE  $31,   0,   0,   0,   0, $28,   0,   0,   0,   0,   0,   0, $28,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $28,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $28,   0,   0,   0, $2C
-                .BYTE    0,   0,   0,   0,   0, $28,   0,   0,   0, $4E, $4E, $4E, $4E,   0,   0,   0,   0,   0, $DC, $DD, $4E, $4E, $4E, $4E,   0,   0,   0,   0,   0,   0, $80, $4E, $4E, $4E, $4E, $4E,   0,   0,   0, $2E
-                .BYTE    0,   0,   0,   0,   9,   5,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
-                .BYTE    0,   0,   0, $32, $32, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $26, $16, $17, $E0, $E1, $1C, $1D, $26, $25, $24, $23, $22, $22
-                .BYTE  $56, $56, $56, $4B, $4B, $56, $56, $56, $56, $56, $56, $56, $56, $56, $56, $56, $56, $56, $56, $56, $56, $56,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2C, $29
-                .BYTE  $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29,   1,   1, $27, $26, $25, $24, $23, $22, $22, $E0, $E1, $22, $22, $22, $22, $22, $22, $2C, $29
-                .BYTE 186, 223, 168
-                .BYTE 201, 171, 132, 22, 201, 164, 46, 180
-                .BYTE 8|(HUE_GREY<<4), 4|(HUE_BLUE2<<4), 14|(HUE_BLUE2<<4)
-                .BYTE 0, 0
-                .BYTE %00111100
-                .BYTE %11000011
-                .BYTE %00110011
-                .BYTE %00000011
-                .BYTE %00000011
-                .BYTE %00000011
-                .BYTE %00000011
-                .BYTE %00000011
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-LEVEL_MAP_11:   .BYTE  $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $2D, $2D, $30, $31, $36, $37, $36, $37, $36, $36,   0,   0,   0,   0, $3B, $57, $37, $36, $36, $37, $36, $36, $36, $37, $37, $36, $2E, $2F, $2C
-                .BYTE  $29, $29, $29, $29, $29, $30, $31, $36, $36, $36, $37,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $39, $57, $56, $56, $56, $56, $56, $56, $56,   0,   0,   0,   0,   0, $2C
-                .BYTE  $29, $29, $29, $30, $36,   0,   0, $56, $56, $22, $23, $24, $25, $26, $27, $34, $34, $34, $34, $34, $34, $34, $34, $34, $35, $29, $57,   0, $28,   0, $3B, $32, $32, $34, $19, $1A,   0,   0,   0, $2C
-                .BYTE  $29, $30, $31,   0,   0,   0,   0, $3B, $32, $32, $32, $33, $34, $34, $35, $29, $29, $30, $2F, $2F, $2F, $30, $31, $2E, $31, $36,   0,   0, $28,   0, $3B, $29, $29, $29, $32, $57,   0,   0,   0, $2C
-                .BYTE  $29, $29, $38,   0,   0,   0,   0,   0, $2E, $2F, $29, $29, $29, $30, $2F, $30, $31,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $28,   0, $39, $29, $29, $29, $29, $57,   0,   0,   0, $2C
-                .BYTE  $2F, $29, $29, $38,   0,   0,   0,   0,   0,   0, $2E, $2F, $37,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $28,   0, $37, $2E, $2F, $29, $29, $57,   0,   0,   0, $2E
-                .BYTE    0, $2E, $2F, $29, $38, $22, $22, $22, $E6, $E7, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $E4, $E5, $22, $22, $22, $22, $22, $2C, $29, $57, $56,   0, $DE, $DF
-                .BYTE    0,   0,   0, $36, $31, $36, $36, $37, $36, $36, $36, $37, $36, $36, $36, $36, $37, $36, $36, $36, $37, $36, $36, $36, $37, $36, $36, $36, $36, $36, $36, $36, $37, $2E, $2F, $57, $32, $34, $33, $32
-                .BYTE  $22, $22, $22, $22, $E0, $E1, $22, $22, $22, $E0, $E1, $22, $E2, $E3, $22, $E4, $E5, $22, $E6, $E7, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $18,   0,   0, $5B, $5B, $5B, $5B, $5B
-                .BYTE  $29, $29, $29, $2B,   0,   0, $2C, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $32, $32, $32, $32, $32, $32, $32, $32
-                .BYTE  $30, $31, $2E, $31,   0,   0, $36, $2E, $37, $2E, $2E, $36, $2E, $2E, $2E, $37, $36, $2E, $37, $2E, $2E, $36, $2E, $2E, $2F, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29
-                .BYTE  $38, $22, $22, $22, $E0, $E1, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $DC, $DD,   0,   0, $2E, $2F, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29, $29
-                .BYTE 173, 223, 64
-                .BYTE 51, 207, 134, 26, 201, 119, 47, 150
-                .BYTE 8|(HUE_GREEN<<4), 6|(HUE_CYAN<<4), 10|(HUE_MAGENTA<<4)
-                .BYTE 0, 0
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000011
-                .BYTE %00001100
-                .BYTE %00000011
-                .BYTE %00001111
-                .BYTE %00000011
-                .BYTE %00000011
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %11110000
-                .BYTE %00001100
-                .BYTE %00110000
-                .BYTE %00111100
-                .BYTE %11110000
-                .BYTE %11110000
-LEVEL_MAP_12:   .BYTE    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
-                .BYTE  $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25,   0,   0,   0, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25, $25
-                .BYTE    1,   1, $2B,   0,   0,   0,   0, $5B, $5B, $36, $36, $37, $36, $36, $37, $36, $36,   0,   0,   0,   0,   0, $36, $36, $37, $36, $37, $36, $36, $2E, $2F,   1,   0,   0, $28,   0,   0, $2C,   1,   1
-                .BYTE    1,   1, $2B,   0,   0,   0,   0, $5B, $5B,   0,   0,   0,   0,   0,   0,   0,   0, $1B, $E0, $E1, $E2, $E3, $18,   0,   0,   0,   0,   0,   0,   0, $39,   1,   0,   0, $28,   0,   0, $2C,   1,   1
-                .BYTE    1,   1, $2B,   0,   0,   0,   0,   1, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10, $10,   0,   0, $2E,   1,   0,   0, $28,   0,   0, $2C,   1,   1
-                .BYTE    1,   1, $2B,   0,   0,   0,   0,   1,   0,   0,   0, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22,   0,   0,   0,   0,   0,   0,   0,   1,   0,   0, $28,   0,   0, $2C,   1,   1
-                .BYTE    1,   1, $2B,   0,   0,   0,   0,   1, $38,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $28,   0,   0,   0,   0,   0,   0,   0,   0,   0, $39,   1,   0,   0, $28,   0,   0, $2C,   1,   1
-                .BYTE    1,   1, $2B,   0,   0,   0,   0, $10, $10, $10, $10, $10, $10, $10,   0,   0,   0, $39, $38,   0, $1B, $22, $23, $24, $25, $26, $27,   1, $14, $13, $12, $11,   0,   0, $28,   0,   0, $2C,   1,   1
-                .BYTE    1,   1, $2B, $25, $24, $23, $22, $18,   0,   0,   0,   0,   0,   0,   0,   0,   0, $10, $10, $10, $10, $10, $10,   5, $F3, $F2, $F1, $F0,   0,   0,   0,   0,   0, $1B, $22, $23, $24, $2C, $32, $34
-                .BYTE  $33, $32, $2B,   1,   1,   1,   1,   1, $27, $26, $25, $24, $23, $23,   0,   0,   0, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $23, $24, $25, $26, $27, $27,   1,   1,   1, $35, $29, $29, $29
-                .BYTE  $29, $30, $31,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $DE, $DF,   0,   0,   0,   0, $5B, $5B
-                .BYTE  $2B,   0,   0,   0, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $23, $24, $26,   1,   1,   1
-                .BYTE 149, 151, 0
-                .BYTE 200, 193, 122, 27, 200, 40, 48, 40
-                .BYTE 2|(HUE_BLUEGREEN<<4), 6|(HUE_BLUE<<4), 4|(HUE_CYAN<<4)
-                .BYTE 0, 0
-                .BYTE %00000011
-                .BYTE %00000000
-                .BYTE %00000011
-                .BYTE %00000011
-                .BYTE %00001111
-                .BYTE %00110000
-                .BYTE %00110000
-                .BYTE %00001100
-                .BYTE %00000000
-                .BYTE %11000000
-                .BYTE %00000000
-                .BYTE %11000000
-                .BYTE %11110000
-                .BYTE %00001100
-                .BYTE %00001100
-                .BYTE %00110000
-LEVEL_MAP_13:   .BYTE    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2C
-                .BYTE  $26, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E,   0,   0,   0, $26, $26, $26, $26, $26, $2C
-                .BYTE  $2B,   0,   0,   0, $22, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $2C, $57,   0, $28,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2C, $57,   0, $28,   0, $2C
-                .BYTE  $2B, $15, $16, $17, $22, $59, $59, $E0, $E1, $E2, $E3, $E4, $E5, $E6, $E7, $E0, $E1, $E2, $E3, $22, $59, $59, $59, $59, $22, $22, $59, $59, $59, $59, $59,   0,   0,   0, $2C, $57,   0, $28,   0, $2C
-                .BYTE  $2B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2C, $57,   0, $28,   0, $2C
-                .BYTE  $2B,   0,   0,   0, $59, $59, $59, $59, $E0, $E1, $59, $59, $59, $59, $59, $59, $E2, $E3, $59, $59, $59, $59, $59, $59, $59, $E0, $E1, $59, $59, $59, $59, $1C, $1D, $1E, $2C, $57,   0, $28,   0, $2C
-                .BYTE  $2B, $DC, $DD,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2C, $57,   0, $28,   0, $2C
-                .BYTE  $29, $15, $16, $17, $59, $59, $59, $E0, $E1, $E2, $E3, $E4, $E5, $E6, $E7, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $59, $E6, $E7,   0,   0,   0, $2C, $57,   0, $28,   0, $2C
-                .BYTE  $29, $2B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2E, $31,   0, $28,   0, $2C
-                .BYTE  $5B, $5B,   0,   0,   0, $DE, $DF,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $56, $56, $22, $56, $56,   0,   0,   0,   0, $5B
-                .BYTE    1,   1,   1,   1,   1,   1,   1,   1, $27, $27, $26, $26, $26, $25, $25, $25, $24, $24, $23, $24, $24, $25, $25, $25, $26, $26, $27, $27,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1
-                .BYTE 149, 152, 0
-                .BYTE 48, 192, 195, 33, 201, 192, 48, 192
-                .BYTE 10|(HUE_GOLDORANGE<<4), 6|(HUE_MAGENTA<<4), 6|(HUE_ORANGE<<4)
-                .BYTE 0, 0
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %11000011
-                .BYTE %11110011
-                .BYTE %11111111
-                .BYTE %11111111
-                .BYTE %11110011
-                .BYTE %11000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %11000011
-                .BYTE %00001111
-                .BYTE %11111111
-                .BYTE %11111111
-                .BYTE %11001111
-                .BYTE %00000011
-
-LEVEL_MAP_TITLE:.BYTE    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
-RAM_TOP:        .BYTE    0,   0,   0,   0,   0,   0,   0,   0
-                .BYTE    0,   0,   0,   0,   0,   0,   0,  $D,   3,   4,   5,   6,   1,   5,  $B,   1,  $D,   3,   4,   5,  $B,   1,   7,   8,   9,   5,   6,   1,  $A,  $B,  $C,   0,   0,   0,   0,   0,   0,   0,   0,   0
-                .BYTE    0,   0,   0,   0,   0,   0,   0, $15,   0,   0, $15,   0,  $F, $15, $3F,  $F, $15, $16, $17, $15, $3F,  $F, $1B, $1C, $1D, $15,   0,  $F, $1E, $3A, $3B,   0,   0,   0,   0,   0,   0,   0,   0,   0
-                .BYTE    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  $D,  $E,  $C,   1,   0,   1,  $D,   3,   4,  $A,  $B,  $C,  $D,  $B,  $C,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
-                .BYTE    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $3C, $3D, $3E, $1B, $3D, $1D, $15, $16, $17, $1E, $3A, $3B, $3C, $3D, $3E,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
-                .BYTE    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $22, $39,   0, $33, $34, $25, $36, $25,   0, $23, $2F, $2C, $25, $2D, $21, $2E,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
-                .BYTE    0,   0,   0,   0,   0,   0, $1F, $20,   0, $11, $19, $18, $13,   0, $33, $39, $2E, $21, $30, $33, $25,   0, $33, $2F, $26, $34, $37, $21, $32, $25,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
-LEVEL_MAP_TITLE_LINE_7:.BYTE    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
-                .BYTE    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
-                .BYTE    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $1F,   0,   0,   0, $1A,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
-                .BYTE  $38,   0,   0,   0, $22, $22, $23, $23, $24, $24, $25, $25, $26, $26, $27, $27,   1,   1,   0,   0,   0,   1,   1, $27, $27, $26, $26, $25, $25, $24, $24, $23, $23, $22, $22,   0,   0,   0,   0, $39
-                .BYTE  $2B,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1, $DE, $DE, $DE,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1, $2C
-                .BYTE 147, 151, 0
-                .BYTE 196, 193, 61, 151, 198, 96, 49, 188
-                .BYTE 10|(HUE_GOLDORANGE<<4), 10|(HUE_BLUEGREEN2<<4), 6|(HUE_BLUE<<4)
-                .BYTE 0, 0
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00110011
-                .BYTE %11001100
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00110011
-                .BYTE %11001100
-LEVEL_MAP_15:   .BYTE  $2B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $2E, $2F, $29, $29, $29, $29, $29, $29
-                .BYTE  $2B, $E0, $E1, $1C, $1D, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E, $4E,   0,   0,   0,   0, $2E, $31, $31, $2E, $2E, $31
-                .BYTE  $2B,   0,   0, $5A, $2B,   0,   0,   0,   0,   0, $22, $E0, $E1, $22, $22,   0,   0,   0,   0, $22, $E2, $E3, $22, $22,   0,   0,   0,   0, $22, $E4, $E5, $22, $22,   0,   0,   0,   0, $22, $22, $22
-                .BYTE  $2B,   0,   0, $5A, $2B,   0,   0,   0,   0,   0,  $E,  $F,   1,   7,   8,   0,   0,   0,   0,  $E,  $F,   1,   7,   8,   0,   0,   0,   0,  $E,  $F,   1,   7,   8,   0,   0,   0,   0,   0,   0, $5A
-                .BYTE  $2B,   0,   0, $5A, $2B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $5A
-                .BYTE  $2B,   0,   0, $5A, $2B, $56, $56,   0,   0,   0, $22, $22, $E4, $E5, $22,   0,   0,   0,   0, $22, $E6, $E7, $22, $22,   0,   0,   0,   0, $22, $22, $22,   0,   0,   0,   0,   0,   0,   0,   0, $5A
-                .BYTE  $2B,   0,   0, $5A, $2B,   7,   8,   0,   0,   0,  $E,  $F,   1,   7,   8,   0,   0,   0,   0,  $E,  $F,   1,   7,   8,   0,   0,   0,   0,  $E, $12,   8,   0,   0,   0,   0,   0,   0,   0,   0, $5A
-                .BYTE  $2B,   0,   0, $5A, $2B, $DE, $DF,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $5A
-                .BYTE  $2B,   0,   0, $5A, $2B, $56, $56,   0,   0,   0, $56, $56, $56, $56, $56,   0,   0,   0,   0, $56, $56, $56, $56, $56,   0,   0,   0,   0, $56, $56, $56, $56,   0,   0,   0,   0,   0,   0,   0, $5A
-                .BYTE  $2B,   0,   0, $5A, $2B,   7,   8,   0,   0,   0,  $E,  $F,   1,   7,   8,   0,   0,   0,   0,  $E,  $F,   1,   7,   8,   0,   0,   0,   0,  $E,  $F,   7,   8,   0,   0,   0,   0,   0,   0,   0, $5A
-                .BYTE  $2B,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, $5A
-                .BYTE  $2B, $E0, $E1, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $22, $5A
-                .BYTE 32, 223, 52
-                .BYTE 200, 57, 136, 25, 199, 58, 68, 159
-                .BYTE 10|(HUE_GREEN<<4), 4|(HUE_CYAN<<4), 6|(HUE_ORANGE<<4)
-                .BYTE 0, 0
-                .BYTE %11000000
-                .BYTE %11111111
-                .BYTE %11111100
-                .BYTE %11110000
-                .BYTE %11000000
-                .BYTE %11000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %00000000
-                .BYTE %11000000
-                .BYTE %00110000
-                .BYTE %00110000
-                .BYTE %11111100
-                .BYTE %11101100
-                .BYTE %11111100
-                .BYTE %00110000
+.include "Levels.s"
 
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse Title Screen Font
@@ -3639,21 +2934,19 @@ FONT_BASE_TITLE:.BYTE  $00, $00, $00, $00, $00, $00, $00, $00; 0
                 STA     pDEST_PTR+1
                 LDA     PM_YPOS,X
                 CMP     #37
-                BCC     loc_4212
+                BCC     @loc_4212
                 SEC
                 SBC     #19
                 CMP     #192
-                BCC     loc_421D
+                BCC     @loc_421D
 
-loc_4212:
-                LDA     #0
+@loc_4212:      LDA     #0
                 STA     TILE_RIGHT,X
                 STA     TILE_MID,X
-                JMP     loc_42BD
+                JMP     @loc_42BD
 ; ---------------------------------------------------------------------------
 
-loc_421D:
-                STA     vTEMP1
+@loc_421D:      STA     vTEMP1
                 LSR     A
                 AND     #7
                 STA     SUBPIXEL_Y
@@ -3668,10 +2961,9 @@ loc_421D:
                 CLC
                 ADC     vTEMP1
                 STA     pDEST_PTR
-                BCC     loc_423A
+                BCC     :+
                 INC     pDEST_PTR+1
-
-loc_423A:
+:
                 LDA     PM_XPOS,X
                 SEC
                 SBC     #44
@@ -3699,7 +2991,7 @@ loc_423A:
                 LDA     #3
                 STA     vTEMP1
 
-loc_4267:
+@loc_4267:
                 LDA     SUBPIXEL_X
                 STA     vTEMP2
                 LDA     #0
@@ -3713,10 +3005,9 @@ loc_4267:
                 PLA
                 AND     #(~TILE::ACTION_FLAG) & $FF
                 CPY     #1
-                BNE     loc_4284
+                BNE     :+
                 STA     ROPE_UNDER_PLAYER,X
-
-loc_4284:
+:
                 ASL     A
                 ROL     MULT_40_TMP+1
                 ASL     A
@@ -3731,33 +3022,25 @@ loc_4284:
                 LDY     SUBPIXEL_Y
                 LDA     (MULT_40_TMP),Y
                 ROL     A
-
-loc_429B:
-                ROL     A
+:               ROL     A
                 ROL     A
                 DEC     vTEMP2
-                BPL     loc_429B
+                BPL     :-
                 AND     #3
                 LDY     vTEMP1
                 CPY     #2
-                BNE     loc_42B1
+                BNE     @loc_42B1
                 ORA     vTEMP3
                 STA     TILE_RIGHT,X
-                JMP     loc_4267
-; ---------------------------------------------------------------------------
+                JMP     @loc_4267
 
-loc_42B1:
-                CPY     #1
-                BNE     loc_42BB
+@loc_42B1:      CPY     #1
+                BNE     @loc_42BB
                 STA     TILE_MID,X
-                JMP     loc_4267
-; ---------------------------------------------------------------------------
+                JMP     @loc_4267
 
-loc_42BB:
-                ORA     vTEMP3
-
-loc_42BD:
-                STA     TILE_LEFT,X
+@loc_42BB:      ORA     vTEMP3
+@loc_42BD:      STA     TILE_LEFT,X
                 RTS
 .endproc
 
@@ -3771,12 +3054,10 @@ loc_42BD:
                 SEC
                 SBC     #30
                 CMP     #192
-                BCC     loc_42D2
+                BCC     :+
                 LDY     #$FF
                 RTS
-; ---------------------------------------------------------------------------
-
-loc_42D2:
+:
                 AND     #$F0
                 LSR     A
                 STA     vTEMP1
@@ -3787,10 +3068,9 @@ loc_42D2:
                 CLC
                 ADC     vTEMP1
                 STA     pDEST_PTR
-                BCC     loc_42E6
+                BCC     :+
                 INC     pDEST_PTR+1
-
-loc_42E6:
+:
                 LDA     PM_XPOS,X
                 SEC
                 SBC     #42
@@ -3799,10 +3079,9 @@ loc_42E6:
                 CLC
                 ADC     pDEST_PTR
                 STA     pDEST_PTR
-                BCC     loc_42F7
+                BCC     :+
                 INC     pDEST_PTR+1
-
-loc_42F7:
+:
                 CLC
                 LDA     pDEST_PTR+1
                 ADC     LEVEL_MAP_ADR+1
@@ -3812,27 +3091,22 @@ loc_42F7:
                 SEC
                 SBC     #1
                 STA     pDEST_PTR
-                BCS     loc_430A
+                BCS     :+
                 DEC     pDEST_PTR+1
-
-loc_430A:
+:
                 LDY     #1
                 CPX     #PM_OBJECT::PLAYER ; the actual player
-                BNE     loc_431F
+                BNE     @notPlayer
 
-loc_4310:
-                LDA     (pDEST_PTR),Y
+@loop:          LDA     (pDEST_PTR),Y
                 CMP     #TILE::ROPE
-                BNE     loc_4319
+                BNE     :+
                 STA     ROPE_UNDER_PLAYER,X
-
-loc_4319:
-                STA     CURRENT_CH,Y    ; only written to, unused
+:               STA     CURRENT_CH,Y    ; only written to, unused
                 DEY
-                BPL     loc_4310
+                BPL     @loop
 
-loc_431F:
-                LDY     #0
+@notPlayer:     LDY     #0
                 RTS
 .endproc
 
@@ -3851,18 +3125,18 @@ loc_431F:
                 JSR     TITLE_TEXT_LINE_CLEAR
                 LDA     PLAYER_STATE
                 CMP     #PLAYER_STATE::WON_GAME ; Player won the game
-                BEQ     _player_won
+                BEQ     @player_won
                 JSR     TITLE_SHOW_AND_WAIT
-                JMP     _continue
-_player_won:
-                JSR     INCREASE_LEVEL
-_continue:
+                JMP     @continue
+@player_won:    JSR     INCREASE_LEVEL
+@continue:
                 JSR     TITLE_SHOW_LEVEL_TEXT
+
                 LDA     #0
                 STA     RTCLOK+2        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
-_small_delay_:
-                LDA     RTCLOK+2        ; 2.13s delay
-                BPL     _small_delay_
+:               LDA     RTCLOK+2        ; 2.13s delay
+                BPL     :-
+
                 LDA     #0
                 STA     ATRACT          ; ATTRACT MODE FLAG
                 JSR     TITLE_TEXT_LINE_CLEAR
@@ -3876,10 +3150,9 @@ _small_delay_:
                 INC     level
                 LDA     level
                 CMP     #4
-                BCC     _clip_level
+                BCC     :+
                 LDA     #3
-
-_clip_level:
+:
                 STA     level
                 JSR     TITLE_SHOW_LEVEL_TEXT
                 LDA     level
@@ -3889,25 +3162,23 @@ _clip_level:
                 CLC
                 ADC     #8
                 TAY
-
-_loop:
-                LDA     s_CODE,Y
+@loop:          LDA     s_CODE,Y
                 SEC
                 SBC     #' '
                 STA     LEVEL_MAP_TITLE_LINE_7+$F,Y
                 DEY
-                BPL     _loop
+                BPL     @loop
                 LDA     #KEY_NONE
                 STA     CH              ; GLOBAL VARIABLE FOR KEYBOARD
 
-_wait_button_or_key:
+@wait_button_or_key:
                 LDA     STRIG0          ; Joystick button 0 pressed?
-                BEQ     _wait_button_or_key_done
+                BEQ     @wait_button_or_key_done
                 LDA     CH              ; GLOBAL VARIABLE FOR KEYBOARD
                 CMP     #KEY_NONE
-                BEQ     _wait_button_or_key
+                BEQ     @wait_button_or_key
 
-_wait_button_or_key_done:
+@wait_button_or_key_done:
                 RTS
 .endproc
 
@@ -3923,23 +3194,17 @@ _wait_button_or_key_done:
 TITLE_CODE_OR_TRIGGER_loop:
                 LDY     #24
 
-_loop:
-                LDA     RTCLOK+1        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
+@loop:          LDA     RTCLOK+1        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
                 AND     #$20 ; ' '
-                BEQ     _alt_text
+                BEQ     @alt_text
                 LDA     sOR_PRESSS_TRIGGER_TO_BEGIN,Y
-                JMP     _continue
-; ---------------------------------------------------------------------------
-
-_alt_text:
-                LDA     sENTER_SECRET_CODE_WORD___,Y
-
-_continue:
-                SEC
+                JMP     @continue
+@alt_text:      LDA     sENTER_SECRET_CODE_WORD___,Y
+@continue:      SEC
                 SBC     #' '
                 STA     LEVEL_MAP_TITLE_LINE_7+7,Y
                 DEY
-                BPL     _loop
+                BPL     @loop
                 JMP     TITLE_WAIT_FOR_START
 .endproc
 
@@ -3955,41 +3220,36 @@ _continue:
                 LDA     KEYBDV+4+1      ; GET CHAR FROM KEYBOARD
                 STA     sSRC_PTR
                 INC     pDEST_PTR+1
-                BNE     _add
+                BNE     :+
                 INC     sSRC_PTR
-
-_add:
+:
                 LDA     #0
                 STA     level
                 LDA     #2
                 STA     vPasswordIndex
 
-_loop:
-                INC     vPasswordIndex
+@loop:          INC     vPasswordIndex
                 JSR     pDEST_PTR       ; GET CHAR FROM KEYBOARD
                 LDA     ATACHR          ; ATASCII CHARACTER
                 LDY     vPasswordIndex
                 CMP     sPASSWORD,Y
-                BNE     TITLE_pw_end
+                BNE     @pw_end
                 SEC
                 SBC     #' '
                 STA     LEVEL_MAP_TITLE_LINE_7+7,Y
-                JMP     _loop
-; ---------------------------------------------------------------------------
+                JMP     @loop
 
-TITLE_pw_end:
-                TYA
+@pw_end:        TYA
                 CMP     #6
-                BCC     TITLE_rts
+                BCC     @rts
                 INC     level
                 CMP     #9
-                BCC     TITLE_rts
+                BCC     @rts
                 INC     level
                 CMP     #12
-                BCC     TITLE_rts
+                BCC     @rts
                 INC     level
-
-TITLE_rts:
+@rts:
                 RTS
 .endproc
 
@@ -3998,10 +3258,9 @@ TITLE_rts:
 .proc TITLE_TEXT_LINE_CLEAR
                 LDY     #27
                 LDA     #0
-_loop:
-                STA     LEVEL_MAP_TITLE_LINE_7+5,Y
+:               STA     LEVEL_MAP_TITLE_LINE_7+5,Y
                 DEY
-                BPL     _loop
+                BPL     :-
                 RTS
 .endproc
 
@@ -4014,13 +3273,12 @@ _loop:
                 ADC     #'0'
                 STA     s_LEVEL_0_+7
                 LDY     #7
-_loop:
-                LDA     s_LEVEL_0_,Y
+@loop:          LDA     s_LEVEL_0_,Y
                 SEC
                 SBC     #' '
                 STA     LEVEL_MAP_TITLE_LINE_7+7,Y
                 DEY
-                BPL     _loop
+                BPL     @loop
                 RTS
 .endproc
 
@@ -4037,43 +3295,33 @@ sOR_PRESSS_TRIGGER_TO_BEGIN:
                 STA     AUDC2
                 LDA     CH              ; GLOBAL VARIABLE FOR KEYBOARD
                 CMP     #KEY_NONE
-                BEQ     _no_key
+                BEQ     :+
                 JMP     TITLE_PASSWORD_ENTRY
-; ---------------------------------------------------------------------------
-
-_no_key:
+:
                 LDA     STRIG0          ; Joystick button 0 pressed?
-                BNE     _no_button      ; Here sort of a loop counter
+                BNE     :+              ; Here sort of a loop counter
                 RTS
-; ---------------------------------------------------------------------------
-
-_no_button:
+:
                 INC     RTCLOK+1        ; Here sort of a loop counter
-                BNE     loc_448B
+                BNE     :+
                 LDA     #0
                 STA     vDemoMode
                 LDA     #(~JOYSTICK::J1_RIGHT) & $FF
                 STA     vJoystickInput  ; Demo mode starts after around 1:20min
                 RTS
-; ---------------------------------------------------------------------------
-
-loc_448B:
+:
                 LDA     RTCLOK+1        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
                 AND     #$15
-                BNE     _title_music
+                BNE     :+
                 JMP     TITLE_SHOW_AND_WAIT::TITLE_CODE_OR_TRIGGER_loop
-; ---------------------------------------------------------------------------
 
-_title_music:
-                LDY     #0
+:               LDY     #0
                 LDA     #AUDC_POLYS_NONE|2
                 STA     AUDC2
-
-_loop:
-                LDA     RANDOM
+@loop:          LDA     RANDOM
                 AND     #7
                 CMP     #SOUND_EFFECT::KEY_COLLECTED
-                BCS     _loop
+                BCS     @loop
                 SEC
                 SBC     #2
                 CLC
@@ -4085,10 +3333,9 @@ _loop:
                 STA     AUDF2
                 LDA     RANDOM
                 AND     #$3F ; '?'
-                BNE     loc_44C1
+                BNE     :+
                 JSR     SOUND_PLAY_on_CH4
-
-loc_44C1:
+:
                 LDA     RANDOM
                 AND     #8
                 ORA     #7
@@ -4096,17 +3343,14 @@ loc_44C1:
                 LDA     #0
                 STA     RTCLOK+2        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
 
-_delay_loop:
-                LDA     CH              ; GLOBAL VARIABLE FOR KEYBOARD
+@delay_loop:    LDA     CH              ; GLOBAL VARIABLE FOR KEYBOARD
                 CMP     #KEY_NONE
-                BEQ     _no_key_
+                BEQ     :+
                 JMP     TITLE_WAIT_FOR_START
-; ---------------------------------------------------------------------------
-
-_no_key_:
+:
                 LDA     RTCLOK+2        ; 1/8-1/4s wait time (random)
                 CMP     vTEMP1
-                BCC     _delay_loop
+                BCC     @delay_loop
 
                 JMP     TITLE_WAIT_FOR_START
 .endproc
@@ -4118,9 +3362,7 @@ _no_key_:
                 STX     vTEMP2
                 LDX     #7
                 LDY     #14
-
-_loop:
-                LDA     vTrasuresCollected,Y
+@loop:          LDA     vTrasuresCollected,Y
                 STA     vTEMP1
                 LDA     vTrasuresCollected+1,Y
                 ASL     A
@@ -4132,32 +3374,28 @@ _loop:
                 DEY
                 DEY
                 DEX
-                BPL     _loop
+                BPL     @loop
 
                 LDA     #FONT_1C00::TREASURE___
                 STA     STATUS_LINE+8
 
                 LDX     player_lives
-                BMI     _rts
+                BMI     @rts
+
                 LDY     #9
-
-_loop2:
-                LDA     #FONT_1C00::TREASURE___
+@loop2:         LDA     #FONT_1C00::TREASURE___
                 DEX
-                BMI     loc_4512
+                BMI     :+
                 LDA     #FONT_1C00::PLAYER|FONT_1C00::COLOR_2
-
-loc_4512:
-                STA     STATUS_LINE,Y
+:               STA     STATUS_LINE,Y
                 INY
                 CPY     #14
-                BNE     _loop2
+                BNE     @loop2
 
                 LDA     #FONT_1C00::TREASURE___
                 STA     STATUS_LINE,Y
 
-_rts:
-                LDX     vTEMP2
+@rts:           LDX     vTEMP2
                 RTS
 .endproc
 
@@ -4178,30 +3416,27 @@ SND_MELODY:     .BYTE 106
 
 .proc VBLANK_IRQ
                 LDA     vAudio_AUDF2_60Hz_countDown
-                BEQ     irq_VBLANK_audio_1
+                BEQ     :+
                 CLC
                 ADC     #8
                 STA     vAudio_AUDF2_60Hz_countDown
-
-irq_VBLANK_audio_1:
+:
                 BIT     PLAYER_STATE
-                BMI     irq_VBLANK_audio_4
+                BMI     @irq_VBLANK_audio_4
                 BIT     vWingedAvenger_Attach_Flag
-                BPL     irq_VBLANK_audio_4
+                BPL     @irq_VBLANK_audio_4
                 LDA     RTCLOK+2        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
                 AND     #3
-                BNE     irq_VBLANK_audio_2
+                BNE     :+
                 LDA     vAudio_AUDC2_AUDC3
-                BEQ     irq_VBLANK_audio_4
+                BEQ     @irq_VBLANK_audio_4
                 DEC     vAudio_AUDC2_AUDC3
-
-irq_VBLANK_audio_2:
+:
                 LDA     vAudio_AUDF2_base
                 SBC     #5
-                BPL     irq_VBLANK_audio_3
+                BPL     :+
                 LDA     #$40 ; '@'
-
-irq_VBLANK_audio_3:
+:
                 STA     vAudio_AUDF2_base
                 SBC     vAudio_AUDF2_60Hz_countDown
                 ADC     #204
@@ -4216,38 +3451,30 @@ irq_VBLANK_audio_3:
                 STA     AUDC2
                 STA     AUDC3
 
-irq_VBLANK_audio_4:
-                                        ; VBLANK_IRQ+10↑j ...
+@irq_VBLANK_audio_4:
+
                 LDX     #PM_OBJECT::WINGED_AVENGER ; flying across the screens
                 LDA     #0
                 STA     vCollisionsPlayer
-
-VBLANK_irq_player_loop:
-                LDA     PM_YPOS,X
+@player_loop:   LDA     PM_YPOS,X
                 CMP     #33
-                BCS     loc_4584        ; P0PF: Collision Player to Playfield (bitmask 0-3: colors 0-3)
+                BCS     :+              ; P0PF: Collision Player to Playfield (bitmask 0-3: colors 0-3)
                 LDA     #0
-                BEQ     loc_4587
-
-loc_4584:
-                LDA     HPOSM0,X        ; P0PF: Collision Player to Playfield (bitmask 0-3: colors 0-3)
-
-loc_4587:
-                STA     vCollisionsPlayfield,X
+                BEQ     @noColl
+:               LDA     HPOSM0,X        ; P0PF: Collision Player to Playfield (bitmask 0-3: colors 0-3)
+@noColl:        STA     vCollisionsPlayfield,X
 
                 CPX     #PM_OBJECT::PHARAOH ; The Pharaoh has clothing as missile graphics, so check for this collision as well
-                BEQ     loc_4598        ; Collision Player to Player
+                BEQ     :+              ; Collision Player to Player
                 LDA     M0PL,X          ; Missile 0 to player collisions. There is no missile-to-missile collision register.
                 AND     #COLLISION_PLAYER::PLAYER_A|COLLISION_PLAYER::PLAYER_B
-                BEQ     loc_4598        ; Collision Player to Player
+                BEQ     :+              ; Collision Player to Player
                 STA     vCollisionsPlayer
-
-loc_4598:
-                                        ; VBLANK_IRQ+66↑j
+:
                 LDA     P0PL,X          ; Collision Player to Player
                 STA     vCollisionsPlayer,X
                 DEX
-                BNE     VBLANK_irq_player_loop
+                BNE     @player_loop
 
                 LDA     HPOSM0          ; P0PF: Collision Player to Playfield (bitmask 0-3: colors 0-3)
                 ORA     vCollisionsPlayfield+1
@@ -4256,100 +3483,80 @@ loc_4598:
                 STA     HITCLR          ; POKE with any number to clear all player/missile collision registers
 
                 AND     #COLLISION_PLAYER::PLAYER_B|COLLISION_PLAYER::PHARAOH ; Pharao or Mummy collided with Playfield?
-                BEQ     loc_45C1        ; => no
+                BEQ     @noCollPha      ; => no
                 LDA     vJoystickInput
                 CMP     #(~JOYSTICK::J1_LEFT) & $FF
-                BNE     loc_45BC
+                BNE     @invertA
                 LDA     #(~JOYSTICK::J1_RIGHT) & $FF
-                BNE     loc_45BE        ; Invert left <-> right joystick directions
+                BNE     @invertB        ; Invert left <-> right joystick directions
+@invertA:       LDA     #(~JOYSTICK::J1_LEFT) & $FF
+@invertB:       STA     vJoystickInput
 
-loc_45BC:
-                LDA     #(~JOYSTICK::J1_LEFT) & $FF
-
-loc_45BE:
-                STA     vJoystickInput
-
-loc_45C1:
+@noCollPha:
                 LDA     vJoystickInput
                 BIT     vDemoMode
-                BPL     loc_45CC
+                BPL     :+
                 LDA     PORTA           ; Reads or writes data from controller jacks one and two if BIT 2 of PACTL
-
-loc_45CC:
-                STA     vJoystickInput
+:               STA     vJoystickInput
 
                 BIT     vDemoMode
-                BMI     loc_45DE
+                BMI     :+
                 LDA     RANDOM
                 AND     #$1F            ; 1/32 (~twice per second)
-                BNE     loc_45DE
+                BNE     :+
                 STA     STRIG0          ; Fire joystick button
-
-loc_45DE:
-                                        ; VBLANK_IRQ+AC↑j
+:
                 LDA     #<DLI_TOP
                 STA     VDSLST          ; DISPLAY LIST NMI VECTOR
                 LDA     CURRENT_ROOM
                 CMP     #ROOM_NUMBER::ENTRANCE_TITLE
-                BNE     loc_45F0
+                BNE     @notTitle
                 LDA     #<DLI_TITLE_ROOM
                 STA     DLI_TOP::DLI_select_room+1
-                BNE     loc_45F5
-
-loc_45F0:
-                LDA     #<DLI_OTHER_ROOM
+                BNE     @dliDone
+@notTitle:      LDA     #<DLI_OTHER_ROOM
                 STA     DLI_TOP::DLI_select_room+1
-
-loc_45F5:
+@dliDone:
                 DEC     unused_decrement_VBL_CE ; Decremented during VBL IRQ, never read
 
                 LDA     CURRENT_ROOM
                 CMP     #ROOM_NUMBER::ENTRANCE_TITLE
-                BNE     loc_4601
-                LDA     #$40 ; '@'
-                BPL     loc_460A
-
-loc_4601:
-                EOR     #$FF
+                BNE     :+
+                LDA     #$40
+                BPL     @shot
+:               EOR     #$FF
                 CLC
                 ADC     #ROOM_NUMBER::COUNT
                 CLC
                 ADC     SHOT_PROBABILITY
-
-loc_460A:
-                STA     SHOT_COUNTER+3
+@shot:          STA     SHOT_COUNTER+3
 
                 DEC     SHOT_SOUND_TIMER
-                BPL     _draw_score
+                BPL     @draw_score
                 LDA     SHOT_COUNTER+3
                 STA     SHOT_SOUND_TIMER
 
                 DEC     SNDF1_NoteDelay
-                BPL     loc_4631
+                BPL     @loc_4631
                 LDA     #$7F
                 STA     SNDF1_NoteDelay
 
                 LDA     SNDF1_NoteOffset
                 CMP     #5
-                BCS     loc_4631
+                BCS     @loc_4631
                 BIT     GAME_LOOP_COUNTDOWN
-                BMI     loc_4631
+                BMI     @loc_4631
                 INC     SNDF1_NoteOffset
 
-loc_4631:
-                                        ; VBLANK_IRQ+FA↑j ...
+@loc_4631:
                 LDY     #0
                 BIT     SHOT_COUNTER+1
-                BMI     loc_4639
+                BMI     :+
                 INY
-
-loc_4639:
-                BIT     SHOT_COUNTER+2
-                BMI     loc_463F
+:               BIT     SHOT_COUNTER+2
+                BMI     :+
                 INY
-
-loc_463F:
-                STY     SNDF1_NoteIndex
+:               STY     SNDF1_NoteIndex
 
                 LDA     CURRENT_ROOM
                 LSR     A
@@ -4361,15 +3568,11 @@ loc_463F:
                 STA     SNDF1_NoteIndex
 
                 LDA     vZeroOneToggle
-                BNE     loc_465A
+                BNE     @loc_465A
                 LDA     #1
-                BNE     loc_465C
-
-loc_465A:
-                LDA     #0
-
-loc_465C:
-                STA     vZeroOneToggle
+                BNE     @loc_465C
+@loc_465A:      LDA     #0
+@loc_465C:      STA     vZeroOneToggle
                 CLC
                 ADC     SNDF1_NoteIndex
                 TAY
@@ -4377,21 +3580,15 @@ loc_465C:
                 STA     AUDF1
 
                 BIT     PLAYER_STATE
-                BMI     loc_4673
+                BMI     @loc_4673
                 BIT     GAME_LOOP_COUNTDOWN
-                BPL     loc_4677
+                BPL     @loc_4677
+@loc_4673:      LDA     #0
+                BEQ     @loc_4679
+@loc_4677:      LDA     #AUDC_POLYS_4|1
+@loc_4679:      STA     AUDC1
 
-loc_4673:
-                LDA     #0
-                BEQ     loc_4679
-
-loc_4677:
-                LDA     #AUDC_POLYS_4|1
-
-loc_4679:
-                STA     AUDC1
-
-_draw_score:
+@draw_score:
                 LDY     #19
                 LDA     SCORE
                 AND     #$F
@@ -4430,49 +3627,43 @@ _draw_score:
 
 .proc GAME_OVER
                 LDA     vELEVATOR_STATE
-                BMI     _game_over
+                BMI     @game_over
                 LDA     #ELEVATOR_STATE::RESTORE
                 STA     vELEVATOR_STATE
                 JSR     DO_ELEVATOR
 
-_game_over:
+@game_over:
                 LDA     #FONT_1C00::GAME_OVER_7
                 STA     vTEMP1
                 LDY     #6
-
-_game_over_text_loop_:
-                STA     STATUS_LINE+8,Y
+:               STA     STATUS_LINE+8,Y
                 DEC     vTEMP1
                 LDA     vTEMP1
                 DEY
-                BPL     _game_over_text_loop_
+                BPL     :-
 
                 LDY     #SOUND_EFFECT::WINGED_AVENGER_SHOT
                 LDX     #2
-
-_loop:
-                JSR     SOUND_PLAY_on_CH4
+@loop:          JSR     SOUND_PLAY_on_CH4
                 LDA     BULLET_MAX_DISTANCE,X
-                BMI     loc_46E3
+                BMI     :+
                 LDA     #0
                 STA     BULLET_MAX_DISTANCE,X
-                JSR     FIRE_GUN
-
-loc_46E3:
-                DEX
-                BPL     _loop
+                JSR     DO_BULLET
+:               DEX
+                BPL     @loop
 
                 LDA     CURRENT_ROOM
                 STA     vTemp_CurrentRoom
-                JMP     _cycle_all_rooms_
+                JMP     @cycle_all_rooms
 ; ---------------------------------------------------------------------------
 
-_cycle_all_rooms_loop_:
+@cycle_all_rooms_loop:
                 LDA     CURRENT_ROOM
                 CMP     vTemp_CurrentRoom
-                BEQ     loc_470D
+                BEQ     @loc_470D
 
-_cycle_all_rooms_:
+@cycle_all_rooms:
                 CLC
                 ADC     #1
                 AND     #$F
@@ -4481,22 +3672,19 @@ _cycle_all_rooms_:
                 CLC
                 ADC     #>LEVEL_MAP_0
                 STA     LEVEL_MAP_ADR+1
+
                 LDA     #256-6
                 STA     RTCLOK+2        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
+:               LDA     RTCLOK+2        ; 1/10s delay
+                BNE     :-
 
-_small_delay_2_:
-                LDA     RTCLOK+2        ; 1/10s delay
-                BNE     _small_delay_2_
                 STA     ATRACT          ; ATTRACT MODE FLAG
-                BEQ     _cycle_all_rooms_loop_
+                BEQ     @cycle_all_rooms_loop
 
-loc_470D:
-                LDA     #1
+@loc_470D:      LDA     #1
                 STA     RTCLOK+2        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
-
-_small_delay_:
-                LDA     RTCLOK+2        ; ~1s delay
-                BNE     _small_delay_
+:               LDA     RTCLOK+2        ; ~1s delay
+                BNE     :-
 
                 LDA     #>LEVEL_MAP_TITLE
                 STA     LEVEL_MAP_ADR+1
@@ -4509,10 +3697,10 @@ _small_delay_:
 .proc RESET_CTIA_POKEY
                 LDY     #7
                 LDA     #0
-_loop:          STA     AUDF1,Y
+:               STA     AUDF1,Y
                 STA     HPOSP0,Y        ; Horizontal position of player 0
                 DEY
-                BPL     _loop
+                BPL     :-
                 RTS
 .endproc
 
@@ -4520,9 +3708,9 @@ _loop:          STA     AUDF1,Y
 
 .proc DO_ELEVATOR
                 LDA     vELEVATOR_STATE
-                BPL     loc_4731
+                BPL     :+
                 RTS
-loc_4731:       CMP     #ELEVATOR_STATE::START
+:               CMP     #ELEVATOR_STATE::START
                 BEQ     _elevator_start
                 CMP     #ELEVATOR_STATE::RESTORE
                 BEQ     _elevator_restore
@@ -4532,16 +3720,15 @@ loc_4731:       CMP     #ELEVATOR_STATE::START
 _elevator_restore:
                 LDX     #4
                 LDY     #41
-_loop:
-                DEX
+@loop:          DEX
                 LDA     saved_ELEVATOR_TILES_00_01_40_41,X ; Saved 2x2 characters from the level data
                 STA     (ELEVATOR_PTR),Y ; Ptr to the 2x2 character position of the elevator
                 DEY
                 BMI     loc_4753
                 CPY     #39
-                BNE     _loop
+                BNE     @loop
                 LDY     #1
-                BNE     _loop
+                BNE     @loop
 
 loc_4753:
                 LDA     vELEVATOR_STATE
@@ -4592,14 +3779,10 @@ loc_478D:
                 LDA     ELEVATOR_PTR+1  ; Ptr to the 2x2 character position of the elevator
                 SBC     #0
                 STA     ELEVATOR_PTR+1  ; Ptr to the 2x2 character position of the elevator
-
 loc_47A4:
                 LDX     #4
                 LDY     #41
-
-_loop2:
-                                        ; DO_ELEVATOR+AC↓j
-                DEX
+_loop2:         DEX
                 LDA     #0
                 STA     FONT_ELEVATOR_2,X
                 STA     FONT_ELEVATOR_0,X
@@ -5070,15 +4253,14 @@ _fly_left:
                                         ; DO_WINGED_AVENGER+6C↑j
                 STA     vBAT_XOffset
 
-                LDY     START::PROT_CHECKSUM_C2+1
+; PROTECTION: check the checksum routine
+                LDY     START::PROT_CHECKSUM_C+1
                 CPY     #$C3
                 BEQ     _no_x_change
                 LDA     RANDOM
                 STA     PROT_PM_GRAPHICS_MSB_2
 
-_no_x_change:
-                                        ; DO_WINGED_AVENGER+78↑j
-                BIT     vWingedAvenger_Hunt_Timer
+_no_x_change:   BIT     vWingedAvenger_Hunt_Timer
                 BPL     loc_4A55
                 LDA     CURRENT_ROOM
                 CMP     #ROOM_NUMBER::ENTRANCE_TITLE
@@ -5183,23 +4365,24 @@ loc_4AC7:
 
 .proc DO_CROWN_ARROW
                 LDA     CROWN_ARROW_DURATION,X
-                BPL     loc_4B1E
+                BPL     @loc_4B1E
                 LDA     RANDOM
                 AND     #$3F ; '?'
-                BEQ     loc_4ADE
-_rts:           RTS
-loc_4ADE:       LDA     CURRENT_ROOM
+                BEQ     :+
+@rts:           RTS
+
+:               LDA     CURRENT_ROOM
                 CMP     #ROOM_NUMBER::ENTRANCE_TITLE
-                BEQ     _rts
+                BEQ     @rts
                 SEC
                 SBC     #2
                 SBC     CURRENT_ROOM,X
-                BMI     _rts
+                BMI     @rts
 
                 LDY     level
                 LDA     RANDOM
                 AND     BITMASK_4_bits,Y
-                BNE     _rts
+                BNE     @rts
 
                 LDA     #$7F
                 STA     CROWN_ARROW_DURATION,X
@@ -5218,68 +4401,57 @@ loc_4ADE:       LDA     CURRENT_ROOM
                 LDA     ENTRY_START_XPOS,Y
                 STA     CROWN_ARROW_XPOS,X
 
-loc_4B1E:
+@loc_4B1E:
                 DEC     CROWN_ARROW_COUNTER,X
-                BPL     loc_4B28
+                BPL     :+
                 LDA     #5
                 STA     CROWN_ARROW_COUNTER,X
-
-loc_4B28:
+:
                 DEC     CROWN_ARROW_DURATION,X
-                BMI     _crown_arrow_done
+                BMI     @crown_arrow_done
                 LDA     vCollisionsPlayfield+1,X
                 AND     #COLLISION_PLAYFIELD::C1_WALL|COLLISION_PLAYFIELD::C2_DOOR_ACCENT
-                BNE     _crown_arrow_done
+                BNE     @crown_arrow_done
 
                 LDA     CROWN_ARROW_DURATION,X
                 CMP     #48
-                BCS     loc_4B45
+                BCS     @loc_4B45
                 STA     AUDF4
                 LDA     #AUDC_POLYS_4|2
                 STA     AUDC4
-                BMI     loc_4B47
+                BMI     @loc_4B47
 
-loc_4B45:
-                LDA     #0
-
-loc_4B47:
-                STA     CROWN_ARROW_FLAG
-                BMI     loc_4B53
+@loc_4B45:      LDA     #0
+@loc_4B47:      STA     CROWN_ARROW_FLAG
+                BMI     @loc_4B53
                 LDA     RANDOM
                 ORA     #(HUE_GREY<<4)|3
-                BNE     loc_4B55
-
-loc_4B53:
-                LDA     #(HUE_GOLDORANGE<<4)|12
-
-loc_4B55:
-                STA     PCOLR1,X        ; P1 COLOR
+                BNE     @loc_4B55
+@loc_4B53:      LDA     #(HUE_GOLDORANGE<<4)|12
+@loc_4B55:      STA     PCOLR1,X        ; P1 COLOR
 
                 LDA     vCollisionsPlayer+1,X
-                BEQ     loc_4B90
+                BEQ     @loc_4B90
                 BIT     CROWN_ARROW_FLAG
-                BPL     _crown_arrow_done
+                BPL     @crown_arrow_done
                 AND     #3
-                BEQ     loc_4B90
+                BEQ     @loc_4B90
 
                 LDA     CROWN_ARROW_type,X
-                BNE     loc_4B72
+                BNE     @loc_4B72
                 INC     player_lives    ; Crown adds a life
                 LDY     #SOUND_EFFECT::TREASURE_COLLECTED
-                BNE     loc_4B7C
+                BNE     @loc_4B7C
 
-loc_4B72:
-                LDY     #SOUND_EFFECT::LOST_LIFE
+@loc_4B72:      LDY     #SOUND_EFFECT::LOST_LIFE
                 DEC     player_lives    ; Arrow removes a life
                 LDA     #32
                 STA     DEATH_ANIM
 
-loc_4B7C:
-                JSR     SOUND_PLAY_on_CH4
+@loc_4B7C:      JSR     SOUND_PLAY_on_CH4
                 JSR     DRAW_TREASURES_LIVES
 
-_crown_arrow_done:
-                                        ; DO_CROWN_ARROW+61↑j ...
+@crown_arrow_done:
                 LDA     #0
                 STA     AUDC4
                 LDA     #$FF
@@ -5288,25 +4460,20 @@ _crown_arrow_done:
                 RTS
 ; ---------------------------------------------------------------------------
 
-loc_4B90:
-                                        ; DO_CROWN_ARROW+93↑j
-                LDA     CROWN_ARROW_XPOS,X
+@loc_4B90:      LDA     CROWN_ARROW_XPOS,X
                 BIT     CROWN_ARROW_FLAG
-                BPL     loc_4BA4
+                BPL     :+
                 LDY     CROWN_ARROW_type,X
-                BEQ     loc_4BA4
+                BEQ     :+
                 CLC
                 ADC     ARROW_XOFFSET,X
                 STA     CROWN_ARROW_XPOS,X
-
-loc_4BA4:
-                                        ; DO_CROWN_ARROW+CA↑j
-                STA     HPOSP1,X        ; Horizontal position of player 1
+:               STA     HPOSP1,X        ; Horizontal position of player 1
 
                 BIT     CROWN_ARROW_FLAG
-                BMI     loc_4BC5
+                BMI     :+
                 DEC     CROWN_ARROW_SOUND_DELAY,X
-                BPL     loc_4BC5
+                BPL     :+
                 LDA     #3
                 STA     CROWN_ARROW_SOUND_DELAY,X
                 INC     CROWN_ARROW_SOUND,X
@@ -5315,38 +4482,31 @@ loc_4BA4:
                 TAY
                 LDA     SND_EFFECT_GAME_END,Y
                 STA     AUDF4
-
-loc_4BC5:
-                                        ; DO_CROWN_ARROW+DE↑j
+:
                 BIT     CROWN_ARROW_FLAG
-                BMI     loc_4BD2
+                BMI     :+
                 LDA     CROWN_ARROW_SOUND_DELAY,X
                 ORA     #AUDC_POLYS_NONE
                 STA     AUDC4
-
-loc_4BD2:
+:
                 BIT     CROWN_ARROW_FLAG
-                BMI     loc_4BE1
+                BMI     @loc_4BE1
                 LDA     RANDOM
                 AND     #1
                 TAY                     ; 0 = Crown, 1 = Arrow
                 LDA     #0
-                BPL     loc_4BF2
+                BPL     @loc_4BF2
 
-loc_4BE1:
+@loc_4BE1:
                 LDA     CROWN_ARROW_type,X
-                BEQ     loc_4BEF        ; => crown
+                BEQ     :+              ; => crown
                 LDA     #<(FONT_BASE_1C00_ARROW_LEFT-FONT_BASE_1C00_ARROW_RIGHT)
                 LDY     ARROW_XOFFSET,X
-                BMI     loc_4BEF
+                BMI     :+
                 LDA     #<(FONT_BASE_1C00_ARROW_RIGHT-FONT_BASE_1C00_ARROW_RIGHT)
-
-loc_4BEF:
-                                        ; DO_CROWN_ARROW+11A↑j
+:
                 LDY     CROWN_ARROW_type,X
-
-loc_4BF2:
-                CLC
+@loc_4BF2:      CLC
                 ADC     CROWN_ARROW_GRAPHICS_LSB,Y
                 STA     sSRC_PTR
                 LDA     PM_GRAPHICS_MSB,X
@@ -5355,18 +4515,15 @@ loc_4BF2:
                 STA     sSRC_PTR+1
                 LDA     CROWN_ARROW_LSB,X
                 STA     pDEST_PTR
+
                 LDY     #7
-
-loc_4C08:
-                LDA     (sSRC_PTR),Y
+@loop:          LDA     (sSRC_PTR),Y
                 BIT     CROWN_ARROW_FLAG
-                BMI     loc_4C12
+                BMI     :+
                 AND     RANDOM
-
-loc_4C12:
-                STA     (pDEST_PTR),Y
+:               STA     (pDEST_PTR),Y
                 DEY
-                BPL     loc_4C08
+                BPL     @loop
                 RTS
 .endproc
 
