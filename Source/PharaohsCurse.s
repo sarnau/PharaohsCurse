@@ -448,6 +448,7 @@ BOOT_CONTINUE:
                 DEC     CART
                 LDA     CART
                 BNE     @no_ROM_cart
+
                 LDA     #(HUE_ORANGE<<4)|4
                 STA     COLOR2          ; COLOR 2
 
@@ -458,6 +459,7 @@ BOOT_CONTINUE:
                 DEY
                 BPL     :-
 :               BMI     :-				; endless loop
+
 
 ; no ROM cartridge detected, display loading text
 @no_ROM_cart:   LDA     sLOADING_PHARAOHS_CURSE,Y
@@ -537,18 +539,17 @@ PROT_LOOP:      JSR     DSKINV          ; DISK INTERFACE
 
                 LDA     RTCLOK+2        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
                 CMP     #104            ; Was reading fast enough (<1.7s)? In a normal disk it should take 2s to read it 10x
-                BCC     PROT_CHECK_OK   ; => crash if too slow
+                BCC     @checkOK        ; => crash if too slow
 
-_crash_:        JMP     (RTCLOK)        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
+@CRASH:         JMP     (RTCLOK)        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
 
-PROT_CHECK_OK:
-                LDA     #0
+@checkOK:       LDA     #0
                 STA     SOUNDR          ; NOISY I/O FLAG. (ZERO IS QUIET)
 
                 LDA     #98             ; Sector 98 has to have a CRC error
                 STA     DAUX1           ; COMMAND AUXILLARY BYTES 1
                 JSR     DSKINV          ; DISK INTERFACE
-                BPL     _crash_			; if there is no error, crash!
+                BPL     @CRASH			; if there is no error, crash!
 
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse Loading and Protection done, now do initialization
