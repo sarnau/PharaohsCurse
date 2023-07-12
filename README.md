@@ -1,5 +1,7 @@
 # Pharaoh's Curse
 
+I've never really wrote any code for the Atari 400/800 computers, so this is my first look into the hardware and software by using Pharaoh's Curse as a learning example. 6502 I knew via the C64, etc, but I knew almost nothing about the graphics and sound capabilities.
+
 Documented source code for Pharaoh's Curse for the Atari 400/800 computers.
 Requires the [CA65 assembler](https://cc65.github.io) to compile.
 
