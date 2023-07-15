@@ -25,9 +25,16 @@
 ; $4cf2 - $4dbe:  ... unused garbage data ...
 ; ---------------------------------------------------------------------------
 
-; If defined, the copy protection is enabled
+PATCH_PROTECTION := 1 ; leave the protection in, but patch it out
+.if .defined(PATCH_PROTECTION)
+.global PATCH_PROTECTION
+.endif
+
+; If defined, the copy protection is enabled. This generates garbage code, because of the assembler?!?
 COPY_PROTECTION := 1
+.if .defined(COPY_PROTECTION)
 .global COPY_PROTECTION
+.endif
 
 .include "atari.inc"
 .include "ascii_charmap.inc" ; activate standard ASCII encoding
@@ -173,8 +180,14 @@ PROT_LOOP:      JSR     DSKINV          ; DISK INTERFACE
                 DEC     a:vTEMP1
                 BNE     :-
 
+.if .defined(PATCH_PROTECTION)
+				LDA     #$14
+				CMP     #$64
+.else
                 LDA     RTCLOK+2        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
                 CMP     #104            ; Was reading fast enough (<1.7s)? In a normal disk it should take 2s to read it 10x
+.endif
+
                 BCC     @checkOK        ; => crash if too slow
 
 @CRASH:         JMP     (RTCLOK)        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
@@ -182,7 +195,12 @@ PROT_LOOP:      JSR     DSKINV          ; DISK INTERFACE
 @checkOK:       LDA     #0
                 STA     SOUNDR          ; NOISY I/O FLAG. (ZERO IS QUIET)
 
+.if .defined(PATCH_PROTECTION)
+				BIT     $E7
+.else
                 LDA     #98             ; Sector 98 has to have a CRC error
+.endif
+
                 STA     DAUX1           ; COMMAND AUXILLARY BYTES 1
                 JSR     DSKINV          ; DISK INTERFACE
                 BPL     @CRASH          ; if there is no error, crash!
