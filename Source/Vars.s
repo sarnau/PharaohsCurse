@@ -5,7 +5,7 @@
 ; ---------------------------------------------------------------------------
     .zeropage
     .org $CB
-SCORE:                      .res 2 ; Score in BCD format
+SCORE:                      .res 2 ; Score in BCD format with digits in reverse order (4321)
 unused_00_CD:               .res 1 ; Erased at launch, never read
 unused_decrement_VBL_CE:    .res 1 ; Decremented during VBL IRQ, never read
                             .res 5 ; unused
