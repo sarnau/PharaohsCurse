@@ -25,11 +25,11 @@
 ; $4cf2 - $4dbe:  ... unused garbage data ...
 ; ---------------------------------------------------------------------------
 
-; WARNING: Turn it off, and it generates garbage code, because of the assembler?!?
+; WARNING: Turn it off, and it generates garbage code, because the doesn't 'get it'
+; that there is less code. The addresses are unchanged, like the code is still in place!
 COPY_PROTECTION := 1 ; If defined, the copy protection is enabled.
 
 PATCH_PROTECTION := 1 ; leave the protection in, but patch it out
-
 
 .ifdef COPY_PROTECTION
 .out "- Copy protection enabled"
@@ -193,8 +193,8 @@ PROT_ADDR:
                 BNE     :-
 
 .ifdef PATCH_PROTECTION
-				LDA     #$14
-				CMP     #$64
+				LDA     #$14			; has the same checksum as the following commands
+				CMP     #$64			; which will not trigger any checksum code.
 .else
                 LDA     RTCLOK+2        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
                 CMP     #104            ; Was reading fast enough (<1.7s)? In a normal disk it should take 2s to read it 10x
@@ -208,7 +208,7 @@ PROT_ADDR:
                 STA     SOUNDR          ; NOISY I/O FLAG. (ZERO IS QUIET)
 
 .ifdef PATCH_PROTECTION
-				BIT     $E7
+				BIT     $E7				; has the same checksum as the following command. And reading sector #0 will return an error.
 .else
                 LDA     #98             ; Sector 98 has to have a CRC error
 .endif
