@@ -3208,7 +3208,7 @@ FONT_TRAP_LSB:  .byte <FONT_TRAP_0_left
                 LDX     #3              ; 4 Traps are possible
 @trap_loop:
                 DEC     TRAP_ANIM_SPEED,X
-                BPL     @font_anim_next_
+                BPL     @trap_anim_next_
                 LDA     #4
                 STA     TRAP_ANIM_SPEED,X
 
@@ -3216,14 +3216,14 @@ FONT_TRAP_LSB:  .byte <FONT_TRAP_0_left
                 BPL     @T10
 
                 LDA     TRAP_ANIM_DELAY,X
-                BMI     @font_anim_next_
+                BMI     @trap_anim_next_
                 DEC     TRAP_ANIM_DELAY,X
                 PHP
                 AND     #7                ; Volume
                 ORA     #AUDC_POLYS_17
                 STA     AUDC4
                 PLP
-                BPL     @font_anim_next_
+                BPL     @trap_anim_next_
 
                 LDA     #0
                 STA     TRAP_ANIM_PHASE,X
@@ -3233,8 +3233,8 @@ FONT_TRAP_LSB:  .byte <FONT_TRAP_0_left
                 AND     #$C0
                 STA     FONT_TRAP_ANIM_LSB,X
 
-@font_anim_next_:
-                JMP     @font_anim_next
+@trap_anim_next_:
+                JMP     @trap_anim_next
 ; ---------------------------------------------------------------------------
 
 @T10:           CLC
@@ -3251,7 +3251,7 @@ FONT_TRAP_LSB:  .byte <FONT_TRAP_0_left
                 STA     (pDEST_PTR),Y
                 DEY
                 BPL     :-
-                JMP     @font_anim_next
+                JMP     @trap_anim_next
 ; ---------------------------------------------------------------------------
 
 @T20:           CMP     #3*16+1
@@ -3285,7 +3285,7 @@ FONT_TRAP_LSB:  .byte <FONT_TRAP_0_left
                 DEY
                 BPL     :-
 
-@font_anim_next:
+@trap_anim_next:
                 DEX
                 BMI     :+
                 JMP     @trap_loop
