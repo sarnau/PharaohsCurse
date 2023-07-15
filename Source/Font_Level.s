@@ -1,8 +1,8 @@
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse Main Font, see TILE enum
 ; ---------------------------------------------------------------------------
-;.assert * = $1800, error, "Main Font not at $1800"
-	.org $1800
+	.res $1800 - * ; we need to align the PC to this address
+.assert * = $1800, error, "Main Font not at $1800"
 
 FONT_BASE_1800:
     .byte %00000000

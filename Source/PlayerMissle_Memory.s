@@ -3,8 +3,8 @@
 ; memory for the Player Missile graphics to be created during
 ; runtime. This data is garbage in the game file.
 ; ---------------------------------------------------------------------------
-;.assert * = $1300, error, "Player Missle memory not at $1300"
-	.org $1300
+	.res $1300 - * ; we need to align the PC to this address
+.assert * = $1300, error, "Player Missle memory not at $1300"
 
 .if FILL_UNUSED_MEM
 PM_GRAPHICS_MISSLES:

@@ -25,8 +25,6 @@
 ; $4cf2 - $4dbe:  ... unused garbage data ...
 ; ---------------------------------------------------------------------------
 
-; WARNING: Turn it off, and it generates garbage code, because the doesn't 'get it'
-; that there is less code. The addresses are unchanged, like the code is still in place!
 COPY_PROTECTION = 1 ; If defined, the copy protection is enabled.
 PATCH_PROTECTION = 1 ; leave the protection in, but patch it out
 .define FILL_UNUSED_MEM 0 ; fill unused memory with $00
@@ -1950,9 +1948,7 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
 .endproc
 
 ; ---------------------------------------------------------------------------
-.if FILL_UNUSED_MEM
-				.byte $00
-.else
+.if !FILL_UNUSED_MEM
                 .byte $A9 ; garbage data to align the following data blocks
 .endif
 
@@ -1964,27 +1960,32 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse Display List
 ; ---------------------------------------------------------------------------
-GAME_DISPLIST:  .byte DL_DLI            ; DIL_TOP is called
-                .byte DL_BLK8
-                .byte DL_BLK8
-                .byte DL_CHR20x8x2 | DL_LMS
-                .addr STATUS_LINE
-                .byte DL_BLK1 | DL_DLI  ; DIL_TITLE_ROOM or DIL_OTHER_ROOM is called
-                .byte DL_CHR40x16x4 | DL_VSCROL | DL_LMS
-LEVEL_MAP_ADR:  .addr LEVEL_MAP_TITLE
-                .byte DL_CHR40x16x4 | DL_VSCROL
-                .byte DL_CHR40x16x4 | DL_VSCROL
-                .byte DL_CHR40x16x4 | DL_VSCROL
-                .byte DL_CHR40x16x4 | DL_VSCROL
-                .byte DL_CHR40x16x4 | DL_VSCROL
-                .byte DL_CHR40x16x4 | DL_VSCROL
-                .byte DL_CHR40x16x4 | DL_VSCROL
-                .byte DL_CHR40x16x4 | DL_VSCROL | DL_DLI ; on the title screen: DIL_OTHER_ROOM is called
-                .byte DL_CHR40x16x4 | DL_VSCROL
-                .byte DL_CHR40x16x4 | DL_VSCROL
-                .byte DL_CHR40x16x4 | DL_VSCROL
-                .byte DL_JVB
-                .addr GAME_DISPLIST
+.assert * = $1E00, error, "Game DIL memory not at $1E00"
+	.res $1E00 - * ; we need to align the PC to this address
+
+GAME_DISPLIST:
+	.byte DL_DLI            ; DIL_TOP is called
+	.byte DL_BLK8
+	.byte DL_BLK8
+	.byte DL_CHR20x8x2 | DL_LMS
+	.addr STATUS_LINE
+	.byte DL_BLK1 | DL_DLI  ; DIL_TITLE_ROOM or DIL_OTHER_ROOM is called
+	.byte DL_CHR40x16x4 | DL_VSCROL | DL_LMS
+LEVEL_MAP_ADR:
+	.addr LEVEL_MAP_TITLE
+	.byte DL_CHR40x16x4 | DL_VSCROL
+	.byte DL_CHR40x16x4 | DL_VSCROL
+	.byte DL_CHR40x16x4 | DL_VSCROL
+	.byte DL_CHR40x16x4 | DL_VSCROL
+	.byte DL_CHR40x16x4 | DL_VSCROL
+	.byte DL_CHR40x16x4 | DL_VSCROL
+	.byte DL_CHR40x16x4 | DL_VSCROL
+	.byte DL_CHR40x16x4 | DL_VSCROL | DL_DLI ; on the title screen: DIL_OTHER_ROOM is called
+	.byte DL_CHR40x16x4 | DL_VSCROL
+	.byte DL_CHR40x16x4 | DL_VSCROL
+	.byte DL_CHR40x16x4 | DL_VSCROL
+	.byte DL_JVB
+	.addr GAME_DISPLIST
 
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse Display List Routines
@@ -2036,9 +2037,7 @@ DLI_select_room:
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse Variables
 ; ---------------------------------------------------------------------------
-.if FILL_UNUSED_MEM
-                .byte $00,$00,$00
-.else
+.if !FILL_UNUSED_MEM
                 .byte $FF,$FF,$FF ; unused
 .endif
 vAddRandomDeathNoiseFlag:
@@ -2138,9 +2137,7 @@ vPlayer_counter_b:.byte  $FF, $FF, $FF, $FF
 ; ---------------------------------------------------------------------------
 ; Garbage (memory alignment for the level data)
 ; ---------------------------------------------------------------------------
-.if FILL_UNUSED_MEM
-                .res 232
-.else
+.if !FILL_UNUSED_MEM
                 .byte  $8E, $6B, $65, $A2, $20, $8E, $87, $04
                 .byte  $8E, $88, $04, $A2, $6E, $8E, $89, $04
                 .byte  $A2, $6F, $8E, $8A, $04, $A2, $46, $A0
@@ -3755,8 +3752,7 @@ vAudio_AUDF1:   .byte 0
 ; ---------------------------------------------------------------------------
 .global CODE_END
 CODE_END:
-.if FILL_UNUSED_MEM
-.else
+.if !FILL_UNUSED_MEM
 		        .byte $20,$A3,$40,$20,$5D,$05,$A9,$FF,$85,$F5,$4C,$BE,$05,$55,$00,$00,$53,$45,$43,$54,$45,$52,$A0,$00,$90,$00,$00,$00,$54,$45,$4E,$54,$20,$20,$A8,$00,$F2,$4C,$00,$00,$4D,$50,$20,$3A,$4E,$45,$58,$54,$9B,$3B,$3A,$54,$31,$36,$20,$4C,$44,$41,$20,$41,$4C,$21,$20,$43,$4C
                 .byte $43,$21,$20,$41,$44,$43,$20,$23,$38,$21,$20,$53,$54,$41,$20,$41,$4C,$9B,$3B,$20,$4A,$4D,$50,$20,$3A,$54,$31,$32,$9B,$9B,$9B,$9B,$3A,$54,$32,$30,$9B,$20,$43,$4D,$50,$20,$23,$33,$2A,$31,$36,$2B,$31,$9B,$20,$42,$43,$43,$20,$3A,$54,$33,$30,$9B,$20,$4C,$44,$41,$20
                 .byte $23,$32,$35,$36,$2D,$31,$36,$9B,$20,$53,$54,$41,$20,$54,$59,$C8,$7D,$52,$50,$44,$49,$52,$2C,$58,$9B,$20,$4C,$44,$41,$20,$23,$33,$2A,$31,$36,$9B,$3A,$54,$33,$30,$20,$53,$54,$41,$20,$54,$52,$41,$50,$2C,$58,$9B,$9B,$20,$3B,$20,$20,$20,$A0,$D7,$D2,$C9,$D4,$C5,$A0

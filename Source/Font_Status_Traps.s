@@ -1,8 +1,8 @@
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse Status Line B/W Font, see FONT_1C00 enum
 ; ---------------------------------------------------------------------------
-;.assert * = $1C00, error, "Status Line Font not at $1C00"
-	.org $1C00
+	.res $1C00 - * ; we need to align the PC to this address
+.assert * = $1C00, error, "Status Line Font not at $1C00"
 
 FONT_BASE_1C00:
     .byte %00111100

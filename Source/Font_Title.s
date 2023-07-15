@@ -1,8 +1,8 @@
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse Title Screen Font
 ; ---------------------------------------------------------------------------
-;.assert * = $4000, error, "Title font not at $4000"
-	.org $4000
+	.res $4000 - * ; we need to align the PC to this address
+.assert * = $4000, error, "Title font not at $4000"
 
 FONT_BASE_TITLE:
     .byte %00000000

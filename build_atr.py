@@ -31,7 +31,8 @@ for i in range(0,SECTOR_SIZE*data[1]):
 	ddata[i] = data[i]
 
 codeStartSector = labels['.START_SECTOR']
-for i in range(0,labels['.CODE_END']-labels['.START']):
-	ddata[(codeStartSector - 1) * SECTOR_SIZE + i] = data[i+labels['.START']-labels['.__CODE_LOAD__']]
+mainOffset = labels['.START']-labels['.__CODE_LOAD__']
+for i in range(0,labels['.__CODE_SIZE__']-mainOffset):
+	ddata[(codeStartSector - 1) * SECTOR_SIZE + i] = data[i+mainOffset]
 
 open('./Objects/PC.atr','wb').write(dheader+ddata)

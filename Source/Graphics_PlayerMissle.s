@@ -1,8 +1,8 @@
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse Player Missle graphics
 ; ---------------------------------------------------------------------------
-;.assert * = $1100, error, "Player Missle graphics not at $1100"
-	.org $1100
+	.res $1100 - * ; we need to align the PC to this address
+.assert * = $1100, error, "Player Missle graphics not at $1100"
 
 PM_GRAPHICS_1100_PLAYER:
     .byte %00000000
