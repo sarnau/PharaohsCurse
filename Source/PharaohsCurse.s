@@ -25,15 +25,18 @@
 ; $4cf2 - $4dbe:  ... unused garbage data ...
 ; ---------------------------------------------------------------------------
 
-COPY_PROTECTION := 1 ; If defined, the copy protection is enabled. This generates garbage code, because of the assembler?!?
+; WARNING: Turn it off, and it generates garbage code, because of the assembler?!?
+COPY_PROTECTION := 1 ; If defined, the copy protection is enabled.
+
 PATCH_PROTECTION := 1 ; leave the protection in, but patch it out
+
 
 .ifdef COPY_PROTECTION
 .out "- Copy protection enabled"
-.endif
 
 .ifdef PATCH_PROTECTION
 .out "- Copy protection patched"
+.endif
 .endif
 
 .include "atari.inc"
