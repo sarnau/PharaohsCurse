@@ -25,15 +25,15 @@
 ; $4cf2 - $4dbe:  ... unused garbage data ...
 ; ---------------------------------------------------------------------------
 
+COPY_PROTECTION := 1 ; If defined, the copy protection is enabled. This generates garbage code, because of the assembler?!?
 PATCH_PROTECTION := 1 ; leave the protection in, but patch it out
-.if .defined(PATCH_PROTECTION)
-.global PATCH_PROTECTION
+
+.ifdef COPY_PROTECTION
+.out "- Copy protection enabled"
 .endif
 
-; If defined, the copy protection is enabled. This generates garbage code, because of the assembler?!?
-COPY_PROTECTION := 1
-.if .defined(COPY_PROTECTION)
-.global COPY_PROTECTION
+.ifdef PATCH_PROTECTION
+.out "- Copy protection patched"
 .endif
 
 .include "atari.inc"
@@ -148,7 +148,7 @@ PROT_LOOP:      JSR     DSKINV          ; DISK INTERFACE
                 DEC     a:vTEMP1
                 BNE     PROT_LOOP
 
-.if .defined(COPY_PROTECTION)
+.ifdef COPY_PROTECTION
 ; Track #5 with the copy protection:
 ; Sector # 94, Track # 5 Sector # 4 / OK /   8.608ms / $1a * 128
 ; Sector # 97, Track # 5 Sector # 7 / OK /  19.512ms / $1a * 128
@@ -180,7 +180,7 @@ PROT_LOOP:      JSR     DSKINV          ; DISK INTERFACE
                 DEC     a:vTEMP1
                 BNE     :-
 
-.if .defined(PATCH_PROTECTION)
+.ifdef PATCH_PROTECTION
 				LDA     #$14
 				CMP     #$64
 .else
@@ -195,7 +195,7 @@ PROT_LOOP:      JSR     DSKINV          ; DISK INTERFACE
 @checkOK:       LDA     #0
                 STA     SOUNDR          ; NOISY I/O FLAG. (ZERO IS QUIET)
 
-.if .defined(PATCH_PROTECTION)
+.ifdef PATCH_PROTECTION
 				BIT     $E7
 .else
                 LDA     #98             ; Sector 98 has to have a CRC error
@@ -295,7 +295,7 @@ sPASSWORD:      .BYTE "   " ; Level 0
                 LDA     #>GAME_DISPLIST ; DLI 1 BLANK - DIL_TOP is called
                 STA     SDLSTH          ; SAVE DISPLAY LIST (HIGH)
 
-.if .defined(COPY_PROTECTION)
+.ifdef COPY_PROTECTION
                 LDA     #OPCODE::ADC_abs_Y
                 STA     PROT_CHECKSUM   ; patched to ADC $500,Y
 .endif
@@ -335,7 +335,7 @@ sPASSWORD:      .BYTE "   " ; Level 0
                 STA     SDLSTL          ; SAVE DISPLAY LIST (LOW)
                 LDA     #226
                 STA     PM_YPOS
-.if .defined(COPY_PROTECTION)
+.ifdef COPY_PROTECTION
                 LDA     #>LOAD_GAME::PROT_LOOP
                 STA     PROT_CHECKSUM+2 ; patched to ADC $500,Y
 .endif
@@ -514,7 +514,7 @@ _no_pause_game_:
 @continue_game:
                 LDX     #PM_OBJECT::MUMMY ; 1 player, 1 pharaoh, 1 mummy (the winged revenge is not part of this loop)
 
-.if .defined(COPY_PROTECTION)
+.ifdef COPY_PROTECTION
 ; PROTECTION: Checksum over checksum code, which checksums the boot code!
                 LDY     #7
                 LDA     #0
@@ -898,7 +898,7 @@ _player_dead:
                 LDA     DEATH_ANIM
                 BNE     _player_dieing
 
-.if .defined(COPY_PROTECTION)
+.ifdef COPY_PROTECTION
 ; PROTECTION: Checksum over the boot code
                 LDA     #0
                 TAY
@@ -1366,7 +1366,7 @@ _player_done:
 
 FIND_NEXT_ROOM:
 
-.if .defined(COPY_PROTECTION)
+.ifdef COPY_PROTECTION
 ; PROTECTION: Checksum over the boot code! This routine is patched before running it
                 LDA     #$1E
                 LDY     #$3F
@@ -1423,7 +1423,7 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
 @first_game_room:
                 STA     CURRENT_ROOM,X
 
-.if .defined(COPY_PROTECTION)
+.ifdef COPY_PROTECTION
 ; PROTECTION: Result of the checksum code
                 PLA                     ; Checksum (never checked!)
                 ORA     #0
@@ -1466,7 +1466,7 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
                 STA     level_exit_direction,X
 
                 JSR     CLEAR_PM_GRAPHICS
-.if .defined(COPY_PROTECTION)
+.ifdef COPY_PROTECTION
                 CLC                     ; CLC is part of the checksum for the copy protection
 .endif
                 JSR     FIND_NEXT_ROOM
@@ -3377,7 +3377,7 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
                 LDA     #2
 @fly_left:      STA     vAVEN_XOffset
 
-.if .defined(COPY_PROTECTION)
+.ifdef COPY_PROTECTION
 ; PROTECTION: check the checksum routine
                 LDY     START::PROT_CHECKSUM_C+1
                 CPY     #$C3
