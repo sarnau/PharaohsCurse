@@ -120,8 +120,9 @@ BOOT_CONTINUE:
 BOOT_INIT:      RTS
 .endproc
 
-; =============== S U B R O U T I N E =======================================
-
+; ---------------------------------------------------------------------------
+; Pharaoh's Curse Game Loading
+; ---------------------------------------------------------------------------
 START_SECTOR := 256
 .global START_SECTOR
 
@@ -140,7 +141,10 @@ START_SECTOR := 256
                 STA     DAUX1           ; Start reading at sector #256
                 LDA     #>START_SECTOR
                 STA     DAUX2           ; COMMAND AUXILLARY BYTES 2
-PROT_LOOP:      JSR     DSKINV          ; DISK INTERFACE
+.ifdef COPY_PROTECTION
+PROT_ADDR:
+.endif
+@loop:          JSR     DSKINV          ; DISK INTERFACE
                 LDA     DBUFLO          ; DATA BUFFER POINTER (LOW)
                 CLC
                 ADC     #$80
@@ -149,8 +153,13 @@ PROT_LOOP:      JSR     DSKINV          ; DISK INTERFACE
                 INC     DBUFHI          ; DATA BUFFER POINTER (HIGH)
 :               INC     DAUX1           ; Next sector
                 DEC     a:vTEMP1
-                BNE     PROT_LOOP
+                BNE     @loop
 
+; ---------------------------------------------------------------------------
+; Pharaoh's Curse Protection code
+; There are several routines in the main game calculating a checksum
+; over the protection.
+; ---------------------------------------------------------------------------
 .ifdef COPY_PROTECTION
 ; Track #5 with the copy protection:
 ; Sector # 94, Track # 5 Sector # 4 / OK /   8.608ms / $1a * 128
@@ -256,13 +265,13 @@ sLOADING_PHARAOHS_CURSE:
 sREMOVE_CARTRIDGE:
                 .BYTE "   REMOVE CARTRIDGE   "
 
-s_CODE:         .BYTE " CODE:"
 
-; Password for the levels, you need to enter SYNISTOPS for level 3
-sPASSWORD:      .BYTE "   " ; Level 0
-                .BYTE "SYN" ; Level 1
-                .BYTE "IST" ; Level 2
-                .BYTE "OPS" ; Level 3
+sCODE:          .BYTE " CODE:"
+; Password for the 4 levels
+sPASSWORD:      .BYTE "   " ; Level 0: none
+sPASSWORD_l1:   .BYTE "SYN" ; Level 1: SYN
+sPASSWORD_l12:  .BYTE "IST" ; Level 2: SYNIST
+sPASSWORD_l123: .BYTE "OPS" ; Level 3: SYNISTOPS
                 .BYTE " "
 
 ; ---------------------------------------------------------------------------
@@ -275,7 +284,7 @@ sPASSWORD:      .BYTE "   " ; Level 0
 
                 LDX     #4
                 LDA     #FONT_1C00::TREASURE___
-:               STA     STATUS_LINE+$F,X
+:               STA     STATUS_LINE+15,X
                 DEX
                 BPL     :-
 
@@ -339,7 +348,7 @@ sPASSWORD:      .BYTE "   " ; Level 0
                 LDA     #226
                 STA     PM_YPOS
 .ifdef COPY_PROTECTION
-                LDA     #>LOAD_GAME::PROT_LOOP
+                LDA     #>LOAD_GAME::PROT_ADDR
                 STA     PROT_CHECKSUM+2 ; patched to ADC $500,Y
 .endif
                 LDA     #%00100001      ; Player 0 - 3, playfield 0 - 3, BAK; Overlaps of players have 3rd color
@@ -2374,27 +2383,28 @@ vPlayer_counter_b:.BYTE  $FF, $FF, $FF, $FF
                 INC     level
                 LDA     level
                 CMP     #4
-                BCC     :+
+                BCC     :+		; max level is 3
                 LDA     #3
-:
-                STA     level
+:               STA     level
+
                 JSR     TITLE_SHOW_LEVEL_TEXT
+
                 LDA     level
                 ASL     A
                 CLC
                 ADC     level
                 CLC
-                ADC     #8
+                ADC     #sPASSWORD_l1-sCODE-1 ; 8 + 3 * level
                 TAY
-@loop:          LDA     s_CODE,Y
+@loop:          LDA     sCODE,Y
                 SEC
                 SBC     #' '
-                STA     LEVEL_MAP_TITLE_LINE_7+$F,Y
+                STA     LEVEL_MAP_TITLE_LINE_7+15,Y
                 DEY
                 BPL     @loop
+
                 LDA     #KEY_NONE
                 STA     CH              ; GLOBAL VARIABLE FOR KEYBOARD
-
 @wait_button_or_key:
                 LDA     STRIG0          ; Joystick button 0 pressed?
                 BEQ     @wait_button_or_key_done
