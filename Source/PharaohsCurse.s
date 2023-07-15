@@ -2179,22 +2179,22 @@ vPlayer_counter_b:.byte  $FF, $FF, $FF, $FF
                 STA     pDEST_PTR+1
                 LDA     PM_YPOS,X
                 CMP     #37
-                BCC     @loc_4212
+                BCC     @outside		; Y<37 too small =>
                 SEC
                 SBC     #19
                 CMP     #192
-                BCC     @loc_421D
+                BCC     @onScreen		; (Y-19)<192 within range =>
 
-@loc_4212:      LDA     #0
+@outside:       LDA     #0
                 STA     TILE_RIGHT,X
                 STA     TILE_MID,X
-                JMP     @loc_42BD
-; ---------------------------------------------------------------------------
+                JMP     @rts
 
-@loc_421D:      STA     vTEMP1
+@onScreen:      STA     vTEMP1
                 LSR     A
                 AND     #7
                 STA     SUBPIXEL_Y
+
                 LDA     vTEMP1
                 AND     #$F0
                 LSR     A
@@ -2215,6 +2215,7 @@ vPlayer_counter_b:.byte  $FF, $FF, $FF, $FF
                 STA     vTEMP1
                 AND     #3
                 STA     SUBPIXEL_X
+
                 LDA     vTEMP1
                 LSR     A
                 LSR     A
@@ -2236,8 +2237,7 @@ vPlayer_counter_b:.byte  $FF, $FF, $FF, $FF
                 LDA     #3
                 STA     vTEMP1
 
-@loc_4267:
-                LDA     SUBPIXEL_X
+@loop:          LDA     SUBPIXEL_X
                 STA     vTEMP2
                 LDA     #0
                 STA     MULT_TMP+1
@@ -2277,15 +2277,15 @@ vPlayer_counter_b:.byte  $FF, $FF, $FF, $FF
                 BNE     @loc_42B1
                 ORA     vTEMP3
                 STA     TILE_RIGHT,X
-                JMP     @loc_4267
+                JMP     @loop
 
 @loc_42B1:      CPY     #1
                 BNE     @loc_42BB
                 STA     TILE_MID,X
-                JMP     @loc_4267
+                JMP     @loop
 
 @loc_42BB:      ORA     vTEMP3
-@loc_42BD:      STA     TILE_LEFT,X
+@rts:           STA     TILE_LEFT,X
                 RTS
 .endproc
 
@@ -2299,7 +2299,7 @@ vPlayer_counter_b:.byte  $FF, $FF, $FF, $FF
                 SEC
                 SBC     #30
                 CMP     #192
-                BCC     :+
+                BCC     :+			; (Y-30)<192 => position on the screen
                 LDY     #$FF
                 RTS
 :
@@ -2829,7 +2829,7 @@ SND_MELODY:     .byte 106,102,85,78,70,66,55,52,48,40,37
                 LDA     SCORE
                 AND     #$F
                 ORA     #FONT_1C00::DIGIT_0|FONT_1C00::COLOR_2
-                STA     STATUS_LINE,Y
+                STA     STATUS_LINE,Y	; 4. Digit
                 DEY
                 LDA     SCORE
                 LSR     A
@@ -2837,12 +2837,12 @@ SND_MELODY:     .byte 106,102,85,78,70,66,55,52,48,40,37
                 LSR     A
                 LSR     A
                 ORA     #FONT_1C00::DIGIT_0|FONT_1C00::COLOR_2
-                STA     STATUS_LINE,Y
+                STA     STATUS_LINE,Y	; 3. Digit
                 DEY
                 LDA     SCORE+1
                 AND     #$F
                 ORA     #FONT_1C00::DIGIT_0|FONT_1C00::COLOR_2
-                STA     STATUS_LINE,Y
+                STA     STATUS_LINE,Y	; 2. Digit
                 DEY
                 LDA     SCORE+1
                 LSR     A
@@ -2850,10 +2850,10 @@ SND_MELODY:     .byte 106,102,85,78,70,66,55,52,48,40,37
                 LSR     A
                 LSR     A
                 ORA     #FONT_1C00::DIGIT_0|FONT_1C00::COLOR_2
-                STA     STATUS_LINE,Y
+                STA     STATUS_LINE,Y	; 1. Digit
                 DEY
                 LDA     #FONT_1C00::TREASURE___
-                STA     STATUS_LINE,Y
+                STA     STATUS_LINE,Y	; space before the the score
 
                 JMP     XITVBV          ; EXIT VERTICAL BLANK ROUTINE
 .endproc
@@ -2917,9 +2917,9 @@ SND_MELODY:     .byte 106,102,85,78,70,66,55,52,48,40,37
                 STA     ATRACT          ; ATTRACT MODE FLAG
                 BEQ     @cycle_all_rooms_loop
 
-@loc_470D:      LDA     #1
+@loc_470D:      LDA     #256-255
                 STA     RTCLOK+2        ; REAL TIME CLOCK (60HZ OR 16.66666 MS)
-:               LDA     RTCLOK+2        ; ~1s delay
+:               LDA     RTCLOK+2        ; ~4.2s delay
                 BNE     :-
 
                 LDA     #>LEVEL_MAP_TITLE
@@ -2933,8 +2933,8 @@ SND_MELODY:     .byte 106,102,85,78,70,66,55,52,48,40,37
 .proc RESET_CTIA_POKEY
                 LDY     #7
                 LDA     #0
-:               STA     AUDF1,Y
-                STA     HPOSP0,Y        ; Horizontal position of player 0
+:               STA     AUDF1,Y		; reset POKEY
+                STA     HPOSP0,Y    ; reset CTIA
                 DEY
                 BPL     :-
                 RTS
@@ -3213,7 +3213,7 @@ FONT_TRAP_LSB:  .byte <FONT_TRAP_0_left
                 STA     TRAP_ANIM_SPEED,X
 
                 LDA     TRAP_ANIM_PHASE,X
-                BPL     @loc_4914
+                BPL     @T10
 
                 LDA     TRAP_ANIM_DELAY,X
                 BMI     @font_anim_next_
@@ -3237,7 +3237,7 @@ FONT_TRAP_LSB:  .byte <FONT_TRAP_0_left
                 JMP     @font_anim_next
 ; ---------------------------------------------------------------------------
 
-@loc_4914:      CLC
+@T10:           CLC
                 ADC     TRAP_ANIM_STEP,X
                 BPL     @T20
                 STA     TRAP_ANIM_PHASE,X
