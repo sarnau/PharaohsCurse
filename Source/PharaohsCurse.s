@@ -225,7 +225,7 @@ PROT_ADDR:
                 LDA     #PLAYER_STATE::INIT ; Set at load time only
                 STA     a:PLAYER_STATE
                 LDA     #0
-                STA     SCORE
+                STA     SCORE			; redundant, because cleared later anyway
                 STA     SCORE+1
                 STA     unused_00_CD    ; Erased at launch, never read
                 JMP     START
@@ -239,10 +239,10 @@ PROT_ADDR:
 :               LDA     FONT_KEY,Y
                 STA     save_FONT_1800_5C_KEY,Y
                 LDA     #$00
-                STA     save_FONT_1800_5B_GATE,Y
-                STA     vTrasuresCollected,Y
+                STA     save_FONT_1800_5B_GATE,Y ; redundant, because set later anyway
+                STA     vTrasuresCollected,Y	; redundant, because set later anyway
                 LDA     #FONT_1C00::TREASURE___
-                STA     STATUS_LINE,Y
+                STA     STATUS_LINE,Y			; erase status line
                 DEY
                 BPL     :-
                 RTS
@@ -250,7 +250,7 @@ PROT_ADDR:
 
 ; ---------------------------------------------------------------------------
 
-; The Display List during loading time
+; The Display List during loading time: a single line of text
 BOOT_DISPLIST:  .BYTE DL_BLK8
                 .BYTE DL_BLK8
                 .BYTE DL_BLK8
@@ -266,6 +266,7 @@ sREMOVE_CARTRIDGE:
                 .BYTE "   REMOVE CARTRIDGE   "
 
 
+; This is part of the main game and contains the level passwords:
 sCODE:          .BYTE " CODE:"
 ; Password for the 4 levels
 sPASSWORD:      .BYTE "   " ; Level 0: none
@@ -284,7 +285,7 @@ sPASSWORD_l123: .BYTE "OPS" ; Level 3: SYNISTOPS
 
                 LDX     #4
                 LDA     #FONT_1C00::TREASURE___
-:               STA     STATUS_LINE+15,X
+:               STA     STATUS_LINE+15,X	; erase rest of the status line (see above)
                 DEX
                 BPL     :-
 
