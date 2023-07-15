@@ -27,14 +27,13 @@
 
 ; WARNING: Turn it off, and it generates garbage code, because the doesn't 'get it'
 ; that there is less code. The addresses are unchanged, like the code is still in place!
-COPY_PROTECTION := 1 ; If defined, the copy protection is enabled.
+.define COPY_PROTECTION 1 ; If defined, the copy protection is enabled.
+.define PATCH_PROTECTION 1 ; leave the protection in, but patch it out
 
-PATCH_PROTECTION := 1 ; leave the protection in, but patch it out
-
-.ifdef COPY_PROTECTION
+.if COPY_PROTECTION
 .out "- Copy protection enabled"
 
-.ifdef PATCH_PROTECTION
+.if PATCH_PROTECTION
 .out "- Copy protection patched"
 .endif
 .endif
@@ -141,7 +140,7 @@ START_SECTOR := 256
                 STA     DAUX1           ; Start reading at sector #256
                 LDA     #>START_SECTOR
                 STA     DAUX2           ; COMMAND AUXILLARY BYTES 2
-.ifdef COPY_PROTECTION
+.if COPY_PROTECTION
 PROT_ADDR:
 .endif
 @loop:          JSR     DSKINV          ; DISK INTERFACE
@@ -160,7 +159,7 @@ PROT_ADDR:
 ; There are several routines in the main game calculating a checksum
 ; over the protection.
 ; ---------------------------------------------------------------------------
-.ifdef COPY_PROTECTION
+.if COPY_PROTECTION
 ; Track #5 with the copy protection:
 ; Sector # 94, Track # 5 Sector # 4 / OK /   8.608ms / $1a * 128
 ; Sector # 97, Track # 5 Sector # 7 / OK /  19.512ms / $1a * 128
@@ -192,7 +191,7 @@ PROT_ADDR:
                 DEC     a:vTEMP1
                 BNE     :-
 
-.ifdef PATCH_PROTECTION
+.if PATCH_PROTECTION
 				LDA     #$14			; has the same checksum as the following commands
 				CMP     #$64			; which will not trigger any checksum code.
 .else
@@ -207,7 +206,7 @@ PROT_ADDR:
 @checkOK:       LDA     #0
                 STA     SOUNDR          ; NOISY I/O FLAG. (ZERO IS QUIET)
 
-.ifdef PATCH_PROTECTION
+.if PATCH_PROTECTION
 				BIT     $E7				; has the same checksum as the following command. And reading sector #0 will return an error.
 .else
                 LDA     #98             ; Sector 98 has to have a CRC error
@@ -308,7 +307,7 @@ sPASSWORD_l123: .byte "OPS" ; Level 3: SYNISTOPS
                 LDA     #>GAME_DISPLIST ; DLI 1 BLANK - DIL_TOP is called
                 STA     SDLSTH          ; SAVE DISPLAY LIST (HIGH)
 
-.ifdef COPY_PROTECTION
+.if COPY_PROTECTION
                 LDA     #OPCODE::ADC_abs_Y
                 STA     PROT_CHECKSUM   ; patched to ADC $500,Y
 .endif
@@ -348,7 +347,7 @@ sPASSWORD_l123: .byte "OPS" ; Level 3: SYNISTOPS
                 STA     SDLSTL          ; SAVE DISPLAY LIST (LOW)
                 LDA     #226
                 STA     PM_YPOS
-.ifdef COPY_PROTECTION
+.if COPY_PROTECTION
                 LDA     #>LOAD_GAME::PROT_ADDR
                 STA     PROT_CHECKSUM+2 ; patched to ADC $500,Y
 .endif
@@ -527,7 +526,7 @@ _no_pause_game_:
 @continue_game:
                 LDX     #PM_OBJECT::MUMMY ; 1 player, 1 pharaoh, 1 mummy (the winged revenge is not part of this loop)
 
-.ifdef COPY_PROTECTION
+.if COPY_PROTECTION
 ; PROTECTION: Checksum over checksum code, which checksums the boot code!
                 LDY     #7
                 LDA     #0
@@ -911,7 +910,7 @@ _player_dead:
                 LDA     DEATH_ANIM
                 BNE     _player_dieing
 
-.ifdef COPY_PROTECTION
+.if COPY_PROTECTION
 ; PROTECTION: Checksum over the boot code
                 LDA     #0
                 TAY
@@ -1379,7 +1378,7 @@ _player_done:
 
 FIND_NEXT_ROOM:
 
-.ifdef COPY_PROTECTION
+.if COPY_PROTECTION
 ; PROTECTION: Checksum over the boot code! This routine is patched before running it
                 LDA     #$1E
                 LDY     #$3F
@@ -1436,7 +1435,7 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
 @first_game_room:
                 STA     CURRENT_ROOM,X
 
-.ifdef COPY_PROTECTION
+.if COPY_PROTECTION
 ; PROTECTION: Result of the checksum code
                 PLA                     ; Checksum (never checked!)
                 ORA     #0
@@ -1479,7 +1478,7 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
                 STA     level_exit_direction,X
 
                 JSR     CLEAR_PM_GRAPHICS
-.ifdef COPY_PROTECTION
+.if COPY_PROTECTION
                 CLC                     ; CLC is part of the checksum for the copy protection
 .endif
                 JSR     FIND_NEXT_ROOM
@@ -3391,7 +3390,7 @@ FONT_TRAP_LSB:  .byte <FONT_TRAP_0_left
                 LDA     #2
 @fly_left:      STA     vAVEN_XOffset
 
-.ifdef COPY_PROTECTION
+.if COPY_PROTECTION
 ; PROTECTION: check the checksum routine
                 LDY     START::PROT_CHECKSUM_C+1
                 CPY     #$C3
