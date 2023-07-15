@@ -60,10 +60,10 @@ AUDC_VOLUME_ONLY = $10
 ; Pharaoh's Curse Boot Record
 ; ---------------------------------------------------------------------------
 .proc BOOT_SECTOR
-                .BYTE 0                 ; boot flag, copied to DFLAGS
-                .BYTE (START-BOOT_SECTOR+127)/128 ; number of sectors the boot record: 3 * 128 Bytes
-                .WORD BOOT_SECTOR       ; Boot address
-                .WORD BOOT_INIT         ; Init address - never gets executed
+                .byte 0                 ; boot flag, copied to DFLAGS
+                .byte (START-BOOT_SECTOR+127)/128 ; number of sectors the boot record: 3 * 128 Bytes
+                .addr BOOT_SECTOR       ; Boot address
+                .addr BOOT_INIT         ; Init address - never gets executed
 
 ; Boot continuation code
 BOOT_CONTINUE:
@@ -223,7 +223,7 @@ PROT_ADDR:
 ; ---------------------------------------------------------------------------
                 JSR     RESET_VARIABLES
                 LDA     #PLAYER_STATE::INIT ; Set at load time only
-                STA     a:PLAYER_STATE
+                STA     a:vPLAYER_STATE
                 LDA     #0
                 STA     SCORE			; redundant, because cleared later anyway
                 STA     SCORE+1
@@ -251,29 +251,29 @@ PROT_ADDR:
 ; ---------------------------------------------------------------------------
 
 ; The Display List during loading time: a single line of text
-BOOT_DISPLIST:  .BYTE DL_BLK8
-                .BYTE DL_BLK8
-                .BYTE DL_BLK8
-                .BYTE DL_CHR40x8x1 | DL_LMS
-                .WORD PRNBUF
-                .BYTE DL_JVB
-                .WORD BOOT_DISPLIST
+BOOT_DISPLIST:  .byte DL_BLK8
+                .byte DL_BLK8
+                .byte DL_BLK8
+                .byte DL_CHR40x8x1 | DL_LMS
+                .addr PRNBUF
+                .byte DL_JVB
+                .addr BOOT_DISPLIST
 
 
 sLOADING_PHARAOHS_CURSE:
-                .BYTE "LOADING PHARAOHS CURSE"
+                .byte "LOADING PHARAOHS CURSE"
 sREMOVE_CARTRIDGE:
-                .BYTE "   REMOVE CARTRIDGE   "
+                .byte "   REMOVE CARTRIDGE   "
 
 
 ; This is part of the main game and contains the level passwords:
-sCODE:          .BYTE " CODE:"
+sCODE:          .byte " CODE:"
 ; Password for the 4 levels
-sPASSWORD:      .BYTE "   " ; Level 0: none
-sPASSWORD_l1:   .BYTE "SYN" ; Level 1: SYN
-sPASSWORD_l12:  .BYTE "IST" ; Level 2: SYNIST
-sPASSWORD_l123: .BYTE "OPS" ; Level 3: SYNISTOPS
-                .BYTE " "
+sPASSWORD:      .byte "   " ; Level 0: none
+sPASSWORD_l1:   .byte "SYN" ; Level 1: SYN
+sPASSWORD_l12:  .byte "IST" ; Level 2: SYNIST
+sPASSWORD_l123: .byte "OPS" ; Level 3: SYNISTOPS
+                .byte " "
 
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse Main Game
@@ -363,15 +363,15 @@ sPASSWORD_l123: .BYTE "OPS" ; Level 3: SYNISTOPS
                 DEY
                 BPL     :-
 
-                BIT     PLAYER_STATE
+                BIT     vPLAYER_STATE
                 BMI     :+
                 LDA     #PLAYER_STATE::GAME_LOST ; Player lost all lifes
-                STA     PLAYER_STATE
+                STA     vPLAYER_STATE
 :
                 JSR     GAME_DONE
                 JSR     DRAW_TREASURES_LIVES
                 LDY     #PLAYER_STATE::ONGOING ; Game is still ongoing
-                STY     PLAYER_STATE
+                STY     vPLAYER_STATE
                 STY     vAudio_AUDC4
                 STY     SCORE
                 STY     SCORE+1
@@ -496,7 +496,7 @@ _no_pause_game_:
                 BPL     @playerAlive
 
                 LDA     #PLAYER_STATE::GAME_LOST ; Player lost all lifes
-                STA     PLAYER_STATE
+                STA     vPLAYER_STATE
                 JSR     RESET_CTIA_POKEY
                 JMP     GAME_OVER
 ; ---------------------------------------------------------------------------
@@ -520,7 +520,7 @@ _no_pause_game_:
                 DEY
                 BPL     :-
                 LDA     #PLAYER_STATE::WON_GAME ; Player won the game
-                STA     PLAYER_STATE
+                STA     vPLAYER_STATE
                 JMP     GAME_OVER
 ; ---------------------------------------------------------------------------
 
@@ -1948,7 +1948,7 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
 .endproc
 
 ; ---------------------------------------------------------------------------
-                .BYTE $A9 ; garbage data to align the following data blocks
+                .byte $A9 ; garbage data to align the following data blocks
 
 .include "Graphics_PlayerMissle.s"
 .include "PlayerMissle_Memory.s"
@@ -1958,27 +1958,27 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse Display List
 ; ---------------------------------------------------------------------------
-GAME_DISPLIST:  .BYTE DL_DLI            ; DIL_TOP is called
-                .BYTE DL_BLK8
-                .BYTE DL_BLK8
-                .BYTE DL_CHR20x8x2 | DL_LMS
-                .WORD STATUS_LINE
-                .BYTE DL_BLK1 | DL_DLI  ; DIL_TITLE_ROOM or DIL_OTHER_ROOM is called
-                .BYTE DL_CHR40x16x4 | DL_VSCROL | DL_LMS
-LEVEL_MAP_ADR:  .WORD LEVEL_MAP_TITLE
-                .BYTE DL_CHR40x16x4 | DL_VSCROL
-                .BYTE DL_CHR40x16x4 | DL_VSCROL
-                .BYTE DL_CHR40x16x4 | DL_VSCROL
-                .BYTE DL_CHR40x16x4 | DL_VSCROL
-                .BYTE DL_CHR40x16x4 | DL_VSCROL
-                .BYTE DL_CHR40x16x4 | DL_VSCROL
-                .BYTE DL_CHR40x16x4 | DL_VSCROL
-                .BYTE DL_CHR40x16x4 | DL_VSCROL | DL_DLI ; on the title screen: DIL_OTHER_ROOM is called
-                .BYTE DL_CHR40x16x4 | DL_VSCROL
-                .BYTE DL_CHR40x16x4 | DL_VSCROL
-                .BYTE DL_CHR40x16x4 | DL_VSCROL
-                .BYTE DL_JVB
-                .WORD GAME_DISPLIST
+GAME_DISPLIST:  .byte DL_DLI            ; DIL_TOP is called
+                .byte DL_BLK8
+                .byte DL_BLK8
+                .byte DL_CHR20x8x2 | DL_LMS
+                .addr STATUS_LINE
+                .byte DL_BLK1 | DL_DLI  ; DIL_TITLE_ROOM or DIL_OTHER_ROOM is called
+                .byte DL_CHR40x16x4 | DL_VSCROL | DL_LMS
+LEVEL_MAP_ADR:  .addr LEVEL_MAP_TITLE
+                .byte DL_CHR40x16x4 | DL_VSCROL
+                .byte DL_CHR40x16x4 | DL_VSCROL
+                .byte DL_CHR40x16x4 | DL_VSCROL
+                .byte DL_CHR40x16x4 | DL_VSCROL
+                .byte DL_CHR40x16x4 | DL_VSCROL
+                .byte DL_CHR40x16x4 | DL_VSCROL
+                .byte DL_CHR40x16x4 | DL_VSCROL
+                .byte DL_CHR40x16x4 | DL_VSCROL | DL_DLI ; on the title screen: DIL_OTHER_ROOM is called
+                .byte DL_CHR40x16x4 | DL_VSCROL
+                .byte DL_CHR40x16x4 | DL_VSCROL
+                .byte DL_CHR40x16x4 | DL_VSCROL
+                .byte DL_JVB
+                .addr GAME_DISPLIST
 
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse Display List Routines
@@ -2030,133 +2030,133 @@ DLI_select_room:
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse Variables
 ; ---------------------------------------------------------------------------
-                .BYTE $FF,$FF,$FF ; unused
+                .byte $FF,$FF,$FF ; unused
 vAddRandomDeathNoiseFlag:
-				.BYTE $FF
+				.byte $FF
 level_exit_direction:
-				.BYTE LEVEL_EXIT::NO,LEVEL_EXIT::NO,LEVEL_EXIT::NO
-SHOT_COUNTER:   .BYTE $00,$FF,$FF,$1F
-SNDF1_NoteOffset:.BYTE 0
-SNDF1_NoteDelay:.BYTE 0
-SND_ZeroOneToggle: .BYTE 0
-SNDF1_NoteIndex:.BYTE 1
-SHOT_SOUND_TIMER:.BYTE 0
-SHOT_PROBABILITY:.BYTE $10
-GAME_LOOP_COUNTDOWN:.BYTE $FF
+				.byte LEVEL_EXIT::NO,LEVEL_EXIT::NO,LEVEL_EXIT::NO
+SHOT_COUNTER:   .byte $00,$FF,$FF,$1F
+SNDF1_NoteOffset:.byte 0
+SNDF1_NoteDelay:.byte 0
+SND_ZeroOneToggle: .byte 0
+SNDF1_NoteIndex:.byte 1
+SHOT_SOUND_TIMER:.byte 0
+SHOT_PROBABILITY:.byte $10
+GAME_LOOP_COUNTDOWN:.byte $FF
 
 SND_EFFECT_LOST_LIFE:
-				.BYTE 243,230,217,204,193,182,173,162
+				.byte 243,230,217,204,193,182,173,162
 SND_EFFECT_KILLED_PHARAO:
-				.BYTE 60,64,81,76,85,108,102,121
+				.byte 60,64,81,76,85,108,102,121
 SND_EFFECT_KILLED_MUMMY:
-				.BYTE 45,47,60,64,57,81,91,76
+				.byte 45,47,60,64,57,81,91,76
 SND_EFFECT_WINGED_AVENGER_SHOT:
-				.BYTE 60,68,76,85,96,85,76,68
+				.byte 60,68,76,85,96,85,76,68
 SND_EFFECT_TREASURE_COLLECTED:
-				.BYTE 60,60,81,96,121,162,193,243
+				.byte 60,60,81,96,121,162,193,243
 SND_EFFECT_KEY_COLLECTED:
-				.BYTE 10,20,10,20,10,20,10,20
+				.byte 10,20,10,20,10,20,10,20
 SND_EFFECT_OPEN_GATE:
-				.BYTE 230,204,144,217,153,230,162,243
+				.byte 230,204,144,217,153,230,162,243
 SND_EFFECT_GAME_END:
-				.BYTE 114,96,114,136,114,136,162,136
+				.byte 114,96,114,136,114,136,162,136
 
-PM_XPOS:        .BYTE  96,124,124,124
-BULLET_XPOS:    .BYTE   0,  0,  0,  0
-PM_YPOS:        .BYTE 184,192,204,180
-BULLET_YPOS:    .BYTE   0,  0,  0,  0
-vKeyCollectedWhenPositive:.BYTE $FF
-vGateOpenPosition:.BYTE $FF
+PM_XPOS:        .byte  96,124,124,124
+BULLET_XPOS:    .byte   0,  0,  0,  0
+PM_YPOS:        .byte 184,192,204,180
+BULLET_YPOS:    .byte   0,  0,  0,  0
+vKeyCollectedWhenPositive:.byte $FF
+vGateOpenPosition:.byte $FF
 
-PLAYER_IMG_MSB: .BYTE >PM_GRAPHICS_1100_PLAYER
-                .BYTE >PM_GRAPHICS_1200_PHARAOH
-                .BYTE >PM_GRAPHICS_1280_MUMMY
-                .BYTE >FONT_BASE_1C00_18_WINGED_AVENGER
+PLAYER_IMG_MSB: .byte >PM_GRAPHICS_1100_PLAYER
+                .byte >PM_GRAPHICS_1200_PHARAOH
+                .byte >PM_GRAPHICS_1280_MUMMY
+                .byte >FONT_BASE_1C00_18_WINGED_AVENGER
 
-PM_GRAPHICS_MSB:.BYTE >PM_GRAPHICS_0_PLAYER
-PROT_PM_GRAPHICS_MSB_1:.BYTE >PM_GRAPHICS_2_PHARAO
-PROT_PM_GRAPHICS_MSB_2:.BYTE >PM_GRAPHICS_3_MUMMY
-                .BYTE >PM_GRAPHICS_MISSLES
-                .BYTE >PM_GRAPHICS_1100_PLAYER
+PM_GRAPHICS_MSB:.byte >PM_GRAPHICS_0_PLAYER
+PROT_PM_GRAPHICS_MSB_1:.byte >PM_GRAPHICS_2_PHARAO
+PROT_PM_GRAPHICS_MSB_2:.byte >PM_GRAPHICS_3_MUMMY
+                .byte >PM_GRAPHICS_MISSLES
+                .byte >PM_GRAPHICS_1100_PLAYER
 
-vWingedAvenger_Attach_Flag:.BYTE $FF
+vWingedAvenger_Attach_Flag:.byte $FF
 
-COLOR_TAB:      .BYTE (HUE_GOLDORANGE<<4)|6
-                .BYTE (HUE_BLUE2<<4)|8
-                .BYTE (HUE_GOLDORANGE<<4)|10
-                .BYTE (HUE_GREY<<4)|10
+COLOR_TAB:      .byte (HUE_GOLDORANGE<<4)|6
+                .byte (HUE_BLUE2<<4)|8
+                .byte (HUE_GOLDORANGE<<4)|10
+                .byte (HUE_GREY<<4)|10
 
-SND_TABLE_LSB:  .BYTE <SND_EFFECT_LOST_LIFE
-                .BYTE <SND_EFFECT_KILLED_PHARAO
-                .BYTE <SND_EFFECT_KILLED_MUMMY
-                .BYTE <SND_EFFECT_WINGED_AVENGER_SHOT
-                .BYTE <SND_EFFECT_TREASURE_COLLECTED
-                .BYTE <SND_EFFECT_KEY_COLLECTED
-                .BYTE <SND_EFFECT_OPEN_GATE
-                .BYTE <SND_EFFECT_GAME_END
+SND_TABLE_LSB:  .byte <SND_EFFECT_LOST_LIFE
+                .byte <SND_EFFECT_KILLED_PHARAO
+                .byte <SND_EFFECT_KILLED_MUMMY
+                .byte <SND_EFFECT_WINGED_AVENGER_SHOT
+                .byte <SND_EFFECT_TREASURE_COLLECTED
+                .byte <SND_EFFECT_KEY_COLLECTED
+                .byte <SND_EFFECT_OPEN_GATE
+                .byte <SND_EFFECT_GAME_END
 
-FONT_TRAP_ANIM_LSB:.BYTE <FONT_TRAP_0_ANIM
-                .BYTE <FONT_TRAP_1_ANIM
-                .BYTE <FONT_TRAP_2_ANIM
-                .BYTE <FONT_TRAP_3_ANIM
+FONT_TRAP_ANIM_LSB:.byte <FONT_TRAP_0_ANIM
+                .byte <FONT_TRAP_1_ANIM
+                .byte <FONT_TRAP_2_ANIM
+                .byte <FONT_TRAP_3_ANIM
                 
-CROWN_ARROW_DURATION:.BYTE  $EA, $FF
-CROWN_ARROW_XPOS:.BYTE  $FF, $FF
-CROWN_ARROW_LSB:.BYTE  $FF, $FF
-CROWN_ARROW_type:.BYTE  $FF,   0
-CROWN_ARROW_SOUND_DELAY:.BYTE 0,0
-CROWN_ARROW_COUNTER:.BYTE 0,0
-CROWN_ARROW_SOUND:.BYTE 0,0
-ARROW_XOFFSET:  .BYTE 0,0
-                .BYTE 0
-CROWN_ARROW_GRAPHICS_LSB:.BYTE <FONT_BASE_1C00_CROWN
-                .BYTE <FONT_BASE_1C00_ARROW_RIGHT
-cARROW_XOFFSET_TAB:.BYTE 256-1
-                .BYTE 1
-s_LEVEL_0_:     .BYTE " LEVEL 0 "
-vDemoMode:      .BYTE $FF
-FONT_ANIM_DOOR_POSITION:.BYTE 0,  2,  4,  6
-FONT_ANIM_DOOR_DIR:.BYTE   1,  1,  1,  1
-FONT_ANIM_DOOR: .BYTE 0,8,16,24
-PLAYER_IMG_ANIM_STEP:.BYTE  16, 16, 16, 16
-TRAP_ANIM_STEP: .BYTE  16, 16, 16, 16
-TRAP_ANIM_PHASE:.BYTE $FF,$FF,$FF,$FF
-TRAP_ANIM_DELAY:.BYTE $FF,$FF,$FF,$FF
-vELEVATOR_STATE:.BYTE $FF
-vPlayer_counter_b:.BYTE  $FF, $FF, $FF, $FF
+CROWN_ARROW_DURATION:.byte  $EA, $FF
+CROWN_ARROW_XPOS:.byte  $FF, $FF
+CROWN_ARROW_LSB:.byte  $FF, $FF
+CROWN_ARROW_type:.byte  $FF,   0
+CROWN_ARROW_SOUND_DELAY:.byte 0,0
+CROWN_ARROW_COUNTER:.byte 0,0
+CROWN_ARROW_SOUND:.byte 0,0
+ARROW_XOFFSET:  .byte 0,0
+                .byte 0
+CROWN_ARROW_GRAPHICS_LSB:.byte <FONT_BASE_1C00_CROWN
+                .byte <FONT_BASE_1C00_ARROW_RIGHT
+cARROW_XOFFSET_TAB:.byte 256-1
+                .byte 1
+s_LEVEL_0_:     .byte " LEVEL 0 "
+vDemoMode:      .byte $FF
+FONT_ANIM_DOOR_POSITION:.byte 0,  2,  4,  6
+FONT_ANIM_DOOR_DIR:.byte   1,  1,  1,  1
+FONT_ANIM_DOOR: .byte 0,8,16,24
+PLAYER_IMG_ANIM_STEP:.byte  16, 16, 16, 16
+TRAP_ANIM_STEP: .byte  16, 16, 16, 16
+TRAP_ANIM_PHASE:.byte $FF,$FF,$FF,$FF
+TRAP_ANIM_DELAY:.byte $FF,$FF,$FF,$FF
+vELEVATOR_STATE:.byte $FF
+vPlayer_counter_b:.byte  $FF, $FF, $FF, $FF
 
 ; ---------------------------------------------------------------------------
 ; Garbage (memory alignment for the level data)
 ; ---------------------------------------------------------------------------
-                .BYTE  $8E, $6B, $65, $A2, $20, $8E, $87, $04
-                .BYTE  $8E, $88, $04, $A2, $6E, $8E, $89, $04
-                .BYTE  $A2, $6F, $8E, $8A, $04, $A2, $46, $A0
-                .BYTE  $6D, $86, $A9, $84, $AA, $86, $B5, $84
-                .BYTE  $B6, $86, $B7, $84, $B8, $86, $B9, $84
-                .BYTE  $BA, $A2, $78, $A0, $67, $86, $B3, $84
-                .BYTE  $B4, $A2, $FF, $8E, $80, $04, $A2, $3F
-                .BYTE  $8E, $81, $04, $A2, $20, $8E, $2C, $3E
-                .BYTE  $86, $DD, $A0, $00, $A9, $20, $A2, $19
-                .BYTE  $86, $8C, $A2, $05, $86, $8D, $A2, $64
-                .BYTE  $86, $8E, $A2, $05, $86, $8F, $91, $8C
-                .BYTE  $91, $8E, $C8, $C0, $32, $D0, $F7, $A9
-                .BYTE  $00, $A2, $06, $9D, $6E, $65, $CA, $10
-                .BYTE  $FA, $60, $45, $6E, $74, $65, $72, $20
-                .BYTE  $73, $6F, $75, $72, $63, $65, $20, $66
-                .BYTE  $69, $6C, $65, $20, $6E, $61, $6D, $65
-                .BYTE  $20, $61, $6E, $64, $20, $6F, $70, $74
-                .BYTE  $69, $6F, $6E, $73, $9B, $A9, $02, $85
-                .BYTE  $52, $A9, $27, $85, $53, $20, $CB, $4F
-                .BYTE  $B0, $CF, $A2, $05, $BD, $15, $24, $9D
-                .BYTE  $06, $05, $CA, $D0, $F7, $AD, $0C, $05
-                .BYTE  $48, $A9, $9B, $8D, $0C, $05, $A2, $ED
-                .BYTE  $86, $8C, $A2, $04, $86, $8D, $A9, $53
-                .BYTE  $8D, $6C, $65, $A9, $00, $20, $DB, $50
-                .BYTE  $A2, $E9, $86, $8C, $A2, $23, $86, $8D
-                .BYTE  $A9, $00, $20, $04, $51, $68, $8D, $0C
-                .BYTE  $05, $A2, $82, $86, $8C, $A2, $5F, $86
-                .BYTE  $8D, $A9, $00, $20, $DB, $50, $B0, $3C
-                .BYTE  $A9, $00, $20, $B3, $50, $B0, $35, $A2
+                .byte  $8E, $6B, $65, $A2, $20, $8E, $87, $04
+                .byte  $8E, $88, $04, $A2, $6E, $8E, $89, $04
+                .byte  $A2, $6F, $8E, $8A, $04, $A2, $46, $A0
+                .byte  $6D, $86, $A9, $84, $AA, $86, $B5, $84
+                .byte  $B6, $86, $B7, $84, $B8, $86, $B9, $84
+                .byte  $BA, $A2, $78, $A0, $67, $86, $B3, $84
+                .byte  $B4, $A2, $FF, $8E, $80, $04, $A2, $3F
+                .byte  $8E, $81, $04, $A2, $20, $8E, $2C, $3E
+                .byte  $86, $DD, $A0, $00, $A9, $20, $A2, $19
+                .byte  $86, $8C, $A2, $05, $86, $8D, $A2, $64
+                .byte  $86, $8E, $A2, $05, $86, $8F, $91, $8C
+                .byte  $91, $8E, $C8, $C0, $32, $D0, $F7, $A9
+                .byte  $00, $A2, $06, $9D, $6E, $65, $CA, $10
+                .byte  $FA, $60, $45, $6E, $74, $65, $72, $20
+                .byte  $73, $6F, $75, $72, $63, $65, $20, $66
+                .byte  $69, $6C, $65, $20, $6E, $61, $6D, $65
+                .byte  $20, $61, $6E, $64, $20, $6F, $70, $74
+                .byte  $69, $6F, $6E, $73, $9B, $A9, $02, $85
+                .byte  $52, $A9, $27, $85, $53, $20, $CB, $4F
+                .byte  $B0, $CF, $A2, $05, $BD, $15, $24, $9D
+                .byte  $06, $05, $CA, $D0, $F7, $AD, $0C, $05
+                .byte  $48, $A9, $9B, $8D, $0C, $05, $A2, $ED
+                .byte  $86, $8C, $A2, $04, $86, $8D, $A9, $53
+                .byte  $8D, $6C, $65, $A9, $00, $20, $DB, $50
+                .byte  $A2, $E9, $86, $8C, $A2, $23, $86, $8D
+                .byte  $A9, $00, $20, $04, $51, $68, $8D, $0C
+                .byte  $05, $A2, $82, $86, $8C, $A2, $5F, $86
+                .byte  $8D, $A9, $00, $20, $DB, $50, $B0, $3C
+                .byte  $A9, $00, $20, $B3, $50, $B0, $35, $A2
 
 .include "Levels.s"
 .include "Font_Title.s"
@@ -2357,7 +2357,7 @@ vPlayer_counter_b:.BYTE  $FF, $FF, $FF, $FF
                 STX     player_lives
                 JSR     CHECK_LEVEL_EXIT
                 JSR     TITLE_TEXT_LINE_CLEAR
-                LDA     PLAYER_STATE
+                LDA     vPLAYER_STATE
                 CMP     #PLAYER_STATE::WON_GAME ; Player won the game
                 BEQ     @player_won
                 JSR     TITLE_SHOW_AND_WAIT
@@ -2519,9 +2519,9 @@ TITLE_CODE_OR_TRIGGER_loop:
 
 ; ---------------------------------------------------------------------------
 sENTER_SECRET_CODE_WORD___:
-                .BYTE "ENTER SECRET CODE WORD   "
+                .byte "ENTER SECRET CODE WORD   "
 sOR_PRESSS_TRIGGER_TO_BEGIN:
-                .BYTE "OR PRESS TRIGGER TO BEGIN"
+                .byte "OR PRESS TRIGGER TO BEGIN"
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -2635,7 +2635,7 @@ sOR_PRESSS_TRIGGER_TO_BEGIN:
 .endproc
 
 ; ---------------------------------------------------------------------------
-SND_MELODY:     .BYTE 106,102,85,78,70,66,55,52,48,40,37
+SND_MELODY:     .byte 106,102,85,78,70,66,55,52,48,40,37
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -2646,7 +2646,7 @@ SND_MELODY:     .BYTE 106,102,85,78,70,66,55,52,48,40,37
                 ADC     #8
                 STA     vAudio_AUDF2_60Hz_countDown
 :
-                BIT     PLAYER_STATE
+                BIT     vPLAYER_STATE
                 BMI     @irq_VBLANK_audio_4
                 BIT     vWingedAvenger_Attach_Flag
                 BPL     @irq_VBLANK_audio_4
@@ -2804,7 +2804,7 @@ SND_MELODY:     .BYTE 106,102,85,78,70,66,55,52,48,40,37
                 LDA     SND_MELODY,Y
                 STA     AUDF1
 
-                BIT     PLAYER_STATE
+                BIT     vPLAYER_STATE
                 BMI     @loc_4673
                 BIT     GAME_LOOP_COUNTDOWN
                 BPL     @loc_4677
@@ -3089,27 +3089,27 @@ SND_MELODY:     .BYTE 106,102,85,78,70,66,55,52,48,40,37
 .endproc
 
 ; ---------------------------------------------------------------------------
-ELEVATOR_TILES: .BYTE TILE::ELEVATOR_0|TILE::ACTION_FLAG
-                .BYTE TILE::ELEVATOR_1|TILE::ACTION_FLAG
-                .BYTE TILE::ELEVATOR_2|TILE::ACTION_FLAG
-                .BYTE TILE::ELEVATOR_3|TILE::ACTION_FLAG
+ELEVATOR_TILES: .byte TILE::ELEVATOR_0|TILE::ACTION_FLAG
+                .byte TILE::ELEVATOR_1|TILE::ACTION_FLAG
+                .byte TILE::ELEVATOR_2|TILE::ACTION_FLAG
+                .byte TILE::ELEVATOR_3|TILE::ACTION_FLAG
 
-ELEVATOR_LEFT:  .BYTE %01000000
-                .BYTE %01010000
-                .BYTE %00000101
-                .BYTE %00000001
-                .BYTE %00000000
+ELEVATOR_LEFT:  .byte %01000000
+                .byte %01010000
+                .byte %00000101
+                .byte %00000001
+                .byte %00000000
 
-ELEVATOR_RIGHT: .BYTE %00000001
-                .BYTE %00000101
-                .BYTE %01010000
-                .BYTE %01000000
-                .BYTE %00000000
+ELEVATOR_RIGHT: .byte %00000001
+                .byte %00000101
+                .byte %01010000
+                .byte %01000000
+                .byte %00000000
 
-FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
-                .BYTE <FONT_TRAP_1
-                .BYTE <FONT_TRAP_2
-                .BYTE <FONT_TRAP_3
+FONT_TRAP_LSB:  .byte <FONT_TRAP_0_left
+                .byte <FONT_TRAP_1
+                .byte <FONT_TRAP_2
+                .byte <FONT_TRAP_3
 
 ; =============== S U B R O U T I N E =======================================
 
@@ -3658,79 +3658,79 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse 2nd part of the variables
 ; ---------------------------------------------------------------------------
-BITMASK_4_bits: .BYTE %00001111,%00000111,%00000011,%00000001
+BITMASK_4_bits: .byte %00001111,%00000111,%00000011,%00000001
 
 ; These 4 blocks contain garbage in the game file, they are erased at launch
 STATUS_LINE:
-				.BYTE $08,$00,$3A,$44,$34,$33,$20,$20
-				.BYTE $A8,$00,$E1,$4B,$08,$00,$3A,$44
-				.BYTE $34,$37,$20,$20,$A8,$00,$EF,$4B
-				.BYTE $08,$00,$3A,$44,$34,$38,$20,$20
-				.BYTE $A8,$00,$F2,$4B,$08,$00,$3A,$44
+				.byte $08,$00,$3A,$44,$34,$33,$20,$20
+				.byte $A8,$00,$E1,$4B,$08,$00,$3A,$44
+				.byte $34,$37,$20,$20,$A8,$00,$EF,$4B
+				.byte $08,$00,$3A,$44,$34,$38,$20,$20
+				.byte $A8,$00,$F2,$4B,$08,$00,$3A,$44
 vTrasuresCollected:
-				.BYTE $35,$30,$20,$20,$A8,$00,$08,$4C,$08,$00,$3A,$44,$35,$31,$20,$20
+				.byte $35,$30,$20,$20,$A8,$00,$08,$4C,$08,$00,$3A,$44,$35,$31,$20,$20
 save_FONT_1800_5C_KEY:
-				.BYTE $A8,$00,$12,$4C,$08,$00,$50,$4E,$44,$31,$20,$20,$A8,$00,$1C,$4C
+				.byte $A8,$00,$12,$4C,$08,$00,$50,$4E,$44,$31,$20,$20,$A8,$00,$1C,$4C
 save_FONT_1800_5B_GATE:
-				.BYTE $00,$00,$4D,$44,$59,$20,$20,$20,$A0,$00,$BB,$4C,$00,$00,$48,$49
+				.byte $00,$00,$4D,$44,$59,$20,$20,$20,$A0,$00,$BB,$4C,$00,$00,$48,$49
 
-level:          .BYTE 0
-vPasswordIndex: .BYTE 0
-BULLET_TILE_LSB:.BYTE 0,0,0,0
-BULLET_TILE_MSB:.BYTE 0,0,0,0
-BULLET_SAVE_TILE:.BYTE 0,0,0,0
-BULLET_SAVE_SUBPIXEL_Y:.BYTE 0,0,0,0
-TRAP_ANIM_SPEED:.BYTE 0,0,0,0
-FONT_ANIM_DELAY:.BYTE 0
-ROPE_ANIM_PHASE:.BYTE 0
-vAVEN_XOffset:  .BYTE 0
-vAVEN_YOffset:  .BYTE 0
-vPHARAOH_IN_WALL:.BYTE 0
-vPlayer_counter_c:.BYTE 0
-vPlayer_counter_a:.BYTE 0
-CURRENT_CH:     .BYTE 0,0 ; only written to, unused
-                .BYTE 0
-vRandomSound:   .BYTE 0
-vJoystickInput: .BYTE 0
-SND_save_Y:     .BYTE 0
-player_lives:   .BYTE 0
-SOUND_TIMER:    .BYTE 0
-                .BYTE 0,0,0
-PLAYER_IMG_ANIM_PHASE:.BYTE 0,0,0
-vCollisionsPlayfield:.BYTE 0,0,0,0,0
-vCollisionsPlayer:.BYTE 0,0,0,0,0
-vEnemyDelay:    .BYTE 0,0,0,0
-ENTRY_START_XPOS:.BYTE 0,0,0,0,0
-ENTRY_START_YPOS:.BYTE 0,0,0,0,0
-BULLET_SPEED:   .BYTE 0,0,0,0
-                .BYTE 0,0,0,0
-BULLET_MAX_DISTANCE:.BYTE 0,0,0,0
-                .BYTE 0,0,0,0
-vELEVATOR_TOP:  .BYTE 0
-vELEVATOR_BOTTOM:.BYTE 0
-vPlayerRunTimer:.BYTE 0,0,0,0 ; How many cycles will the player run in one direction?
+level:          .byte 0
+vPasswordIndex: .byte 0
+BULLET_TILE_LSB:.byte 0,0,0,0
+BULLET_TILE_MSB:.byte 0,0,0,0
+BULLET_SAVE_TILE:.byte 0,0,0,0
+BULLET_SAVE_SUBPIXEL_Y:.byte 0,0,0,0
+TRAP_ANIM_SPEED:.byte 0,0,0,0
+FONT_ANIM_DELAY:.byte 0
+ROPE_ANIM_PHASE:.byte 0
+vAVEN_XOffset:  .byte 0
+vAVEN_YOffset:  .byte 0
+vPHARAOH_IN_WALL:.byte 0
+vPlayer_counter_c:.byte 0
+vPlayer_counter_a:.byte 0
+CURRENT_CH:     .byte 0,0 ; only written to, unused
+                .byte 0
+vRandomSound:   .byte 0
+vJoystickInput: .byte 0
+SND_save_Y:     .byte 0
+player_lives:   .byte 0
+SOUND_TIMER:    .byte 0
+                .byte 0,0,0
+PLAYER_IMG_ANIM_PHASE:.byte 0,0,0
+vCollisionsPlayfield:.byte 0,0,0,0,0
+vCollisionsPlayer:.byte 0,0,0,0,0
+vEnemyDelay:    .byte 0,0,0,0
+ENTRY_START_XPOS:.byte 0,0,0,0,0
+ENTRY_START_YPOS:.byte 0,0,0,0,0
+BULLET_SPEED:   .byte 0,0,0,0
+                .byte 0,0,0,0
+BULLET_MAX_DISTANCE:.byte 0,0,0,0
+                .byte 0,0,0,0
+vELEVATOR_TOP:  .byte 0
+vELEVATOR_BOTTOM:.byte 0
+vPlayerRunTimer:.byte 0,0,0,0 ; How many cycles will the player run in one direction?
 vPLAYER_DIRECTION:
-				.BYTE DIRECTION::NONE,DIRECTION::NONE,DIRECTION::NONE,DIRECTION::NONE
-DEATH_ANIM:     .BYTE $00,$00,$00,$00
-                .BYTE 0,0,0,0 ; unused
-vWingedAvenger_Counter:.BYTE 0,0,0,0
-TILE_MID:       .BYTE 0,0,0
-TILE_LEFT:      .BYTE 0,0,0
-TILE_RIGHT:     .BYTE 0,0,0
-ROPE_UNDER_PLAYER:.BYTE 0,0,0
-CROWN_ARROW_FLAG:.BYTE 0
-save_ELEVATOR_PTR:.WORD 0
-vELEVATOR_ROW_COUNTER:.BYTE 0
-saved_ELEVATOR_TILES_00_01_40_41:.BYTE $00,$00
-                .BYTE $00,$00           ; Saved 2x2 characters from the level data
-vAudio_AUDF1:   .BYTE 0
+				.byte DIRECTION::NONE,DIRECTION::NONE,DIRECTION::NONE,DIRECTION::NONE
+DEATH_ANIM:     .byte $00,$00,$00,$00
+                .byte 0,0,0,0 ; unused
+vWingedAvenger_Counter:.byte 0,0,0,0
+TILE_MID:       .byte 0,0,0
+TILE_LEFT:      .byte 0,0,0
+TILE_RIGHT:     .byte 0,0,0
+ROPE_UNDER_PLAYER:.byte 0,0,0
+CROWN_ARROW_FLAG:.byte 0
+save_ELEVATOR_PTR:.addr 0
+vELEVATOR_ROW_COUNTER:.byte 0
+saved_ELEVATOR_TILES_00_01_40_41:.byte $00,$00
+                .byte $00,$00           ; Saved 2x2 characters from the level data
+vAudio_AUDF1:   .byte 0
 
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse end of the application, followed by garbage data
 ; ---------------------------------------------------------------------------
 .global CODE_END
-CODE_END:       .BYTE $20,$A3,$40,$20,$5D,$05,$A9,$FF,$85,$F5,$4C,$BE,$05,$55,$00,$00,$53,$45,$43,$54,$45,$52,$A0,$00,$90,$00,$00,$00,$54,$45,$4E,$54,$20,$20,$A8,$00,$F2,$4C,$00,$00,$4D,$50,$20,$3A,$4E,$45,$58,$54,$9B,$3B,$3A,$54,$31,$36,$20,$4C,$44,$41,$20,$41,$4C,$21,$20,$43,$4C
-                .BYTE $43,$21,$20,$41,$44,$43,$20,$23,$38,$21,$20,$53,$54,$41,$20,$41,$4C,$9B,$3B,$20,$4A,$4D,$50,$20,$3A,$54,$31,$32,$9B,$9B,$9B,$9B,$3A,$54,$32,$30,$9B,$20,$43,$4D,$50,$20,$23,$33,$2A,$31,$36,$2B,$31,$9B,$20,$42,$43,$43,$20,$3A,$54,$33,$30,$9B,$20,$4C,$44,$41,$20
-                .BYTE $23,$32,$35,$36,$2D,$31,$36,$9B,$20,$53,$54,$41,$20,$54,$59,$C8,$7D,$52,$50,$44,$49,$52,$2C,$58,$9B,$20,$4C,$44,$41,$20,$23,$33,$2A,$31,$36,$9B,$3A,$54,$33,$30,$20,$53,$54,$41,$20,$54,$52,$41,$50,$2C,$58,$9B,$9B,$20,$3B,$20,$20,$20,$A0,$D7,$D2,$C9,$D4,$C5,$A0
-                .BYTE $9B,$9B,$20,$4C,$44,$41,$20,$23,$4C
+CODE_END:       .byte $20,$A3,$40,$20,$5D,$05,$A9,$FF,$85,$F5,$4C,$BE,$05,$55,$00,$00,$53,$45,$43,$54,$45,$52,$A0,$00,$90,$00,$00,$00,$54,$45,$4E,$54,$20,$20,$A8,$00,$F2,$4C,$00,$00,$4D,$50,$20,$3A,$4E,$45,$58,$54,$9B,$3B,$3A,$54,$31,$36,$20,$4C,$44,$41,$20,$41,$4C,$21,$20,$43,$4C
+                .byte $43,$21,$20,$41,$44,$43,$20,$23,$38,$21,$20,$53,$54,$41,$20,$41,$4C,$9B,$3B,$20,$4A,$4D,$50,$20,$3A,$54,$31,$32,$9B,$9B,$9B,$9B,$3A,$54,$32,$30,$9B,$20,$43,$4D,$50,$20,$23,$33,$2A,$31,$36,$2B,$31,$9B,$20,$42,$43,$43,$20,$3A,$54,$33,$30,$9B,$20,$4C,$44,$41,$20
+                .byte $23,$32,$35,$36,$2D,$31,$36,$9B,$20,$53,$54,$41,$20,$54,$59,$C8,$7D,$52,$50,$44,$49,$52,$2C,$58,$9B,$20,$4C,$44,$41,$20,$23,$33,$2A,$31,$36,$9B,$3A,$54,$33,$30,$20,$53,$54,$41,$20,$54,$52,$41,$50,$2C,$58,$9B,$9B,$20,$3B,$20,$20,$20,$A0,$D7,$D2,$C9,$D4,$C5,$A0
+                .byte $9B,$9B,$20,$4C,$44,$41,$20,$23,$4C
                 .END
