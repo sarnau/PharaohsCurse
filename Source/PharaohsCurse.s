@@ -27,7 +27,7 @@
 
 ; WARNING: Turn it off, and it generates garbage code, because the doesn't 'get it'
 ; that there is less code. The addresses are unchanged, like the code is still in place!
-COPY_PROTECTION = 1 ; If defined, the copy protection is enabled.
+;COPY_PROTECTION = 1 ; If defined, the copy protection is enabled.
 ;PATCH_PROTECTION = 1 ; leave the protection in, but patch it out
 .define FILL_UNUSED_MEM 0 ; fill unused memory with $00
 

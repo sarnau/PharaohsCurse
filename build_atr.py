@@ -21,6 +21,8 @@ for l in open('./Objects/object.vs').readlines():
 # if copy protection is enabled, just verify that the code is 100% identical
 if '.COPY_PROTECTION' in labels and not '.PATCH_PROTECTION' in labels:
 	os.system('cmp ./Objects/object.prg ./Pharaohs_Curse.bin')
+else:
+	print('- no compare')
 
 dheader = struct.pack('<3h',0x0296,DISK_SIZE//16,SECTOR_SIZE) + bytearray(10)
 ddata = bytearray(DISK_SIZE)

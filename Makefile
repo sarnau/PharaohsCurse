@@ -4,7 +4,7 @@ SRCDIR        = ./Source
 
 all:
 	mkdir -p $(OBJDIR)/
-	$(BIN) -C $(SRCDIR)/PharaohsCurse.cfg $(SRCDIR)/PharaohsCurse.s -Ln $(OBJDIR)/object.vs -o $(OBJDIR)/object.prg
+	$(BIN) -C $(SRCDIR)/PharaohsCurse.cfg -l listing.lst $(SRCDIR)/PharaohsCurse.s -Ln $(OBJDIR)/object.vs -o $(OBJDIR)/object.prg
 	./build_atr.py
 
 clean:
