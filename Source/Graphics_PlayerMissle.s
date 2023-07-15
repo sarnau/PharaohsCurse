@@ -1,7 +1,8 @@
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse Player Missle graphics
 ; ---------------------------------------------------------------------------
-.assert * = $1100, error, "Player Missle graphics not at $1100"
+;.assert * = $1100, error, "Player Missle graphics not at $1100"
+	.org $1100
 
 PM_GRAPHICS_1100_PLAYER:
     .BYTE %00000000

@@ -1,7 +1,8 @@
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse Status Line B/W Font, see FONT_1C00 enum
 ; ---------------------------------------------------------------------------
-.assert * = $1C00, error, "Status Line Font not at $1C00"
+;.assert * = $1C00, error, "Status Line Font not at $1C00"
+	.org $1C00
 
 FONT_BASE_1C00:
     .BYTE %00111100

@@ -25,9 +25,14 @@
 ; $4cf2 - $4dbe:  ... unused garbage data ...
 ; ---------------------------------------------------------------------------
 
+; If defined, the copy protection is enabled
+COPY_PROTECTION := 1
+.global COPY_PROTECTION
+
 .include "atari.inc"
 .include "ascii_charmap.inc" ; activate standard ASCII encoding
 
+; for the POKEY
 AUDC_POLYS_5_17  = $00
 AUDC_POLYS_5     = $20 ; Same as $60
 AUDC_POLYS_5_4   = $40
@@ -36,384 +41,8 @@ AUDC_POLYS_NONE  = $A0 ; Same as $E0
 AUDC_POLYS_4     = $C0
 AUDC_VOLUME_ONLY = $10
 
-; ---------------------------------------------------------------------------
-
-.struct LEVEL_STRUCT
-                      .res 40 * 12 ; level data as TILE, which are font characters (160*192 pixel)
-    ELEVATOR_TOP      .byte
-    ELEVATOR_BOTTOM   .byte ; X position of the top of the moving sidewalk
-    ELEVATOR_X        .byte ; Y position of the top of the moving sidewalk
-    startPosX_top     .byte
-    startPosY_top     .byte
-    startPosX_bottom  .byte
-    startPosY_bottom  .byte
-    startPosX_left    .byte
-    startPosY_left    .byte
-    startPosX_right   .byte
-    startPosY_right   .byte
-    color0            .byte
-    color1            .byte
-    color2            .byte
-                      .res 2
-                      .res 8*2 ; 2 characters for the custom look of the treasure of the level
-.endstruct
-.assert .sizeof(LEVEL_STRUCT)=512,error
-
-; ---------------------------------------------------------------------------
-
-.enum FONT_1C00
-    DIGIT_0     = $00
-    DIGIT_1     = $01
-    DIGIT_2     = $02
-    DIGIT_3     = $03
-    DIGIT_4     = $04
-    DIGIT_5     = $05	; Digits 0-9
-    DIGIT_6     = $06
-    DIGIT_7     = $07
-    DIGIT_8     = $08
-    DIGIT_9     = $09
-    CROWN       = $0A	; Crown, which can be collected
-    PLAYER      = $0B	; Player in the status line
-    SKULL       = $0C	; unused
-    TREASURE___ = $0D
-    TREASURE__X = $0E	; 0-2 Treasures (2 per character) for the status line
-    TREASURE_X_ = $0F
-    TREASURE_XX = $10
-    GAME_OVER_1 = $11
-    GAME_OVER_2 = $12
-    GAME_OVER_3 = $13
-    GAME_OVER_4 = $14	; "GAME OVER" text as font for the status line
-    GAME_OVER_5 = $15
-    GAME_OVER_6 = $16
-    GAME_OVER_7 = $17
-    V_anim_1    = $18	; Winged Avenger images
-    V_anim_2    = $19
-    V_anim_3    = $1A
-    V_anim_4    = $1B
-    V_anim_5    = $1C
-    ARROW_RIGHT = $1D	; Arrow, which will shoot the player
-    ARROW_LEFT  = $1E	; Arrow, which will shoot the player
-    ALT_CROWN   = $1F	; unused
-
-    COLOR_1     = $40
-    COLOR_2     = $80
-    COLOR_3     = $C0
-.endenum
-
-; ---------------------------------------------------------------------------
-
-.enum LEVEL_EXIT
-    NO     = 0
-    LEFT   = 1
-    RIGHT  = 2	; which exit was chosen in the level
-    TOP    = 3
-    BOTTOM = 4
-.endenum
-
-; ---------------------------------------------------------------------------
-
-.enum JOYSTICK
-    J1_UP    = $01	; Joystick #1 directions
-    J1_DOWN  = $02
-    J1_LEFT  = $04
-    J1_RIGHT = $08
-
-    J2_UP    = $10	; Joystick #2 is unused
-    J2_DOWN  = $20
-    J2_LEFT  = $40
-    J2_RIGHT = $80
-.endenum
-
-; ---------------------------------------------------------------------------
-
-; In what kind of motion is the player
-.enum DIRECTION
-    NONE  = 0
-    CLIMB = 1
-    LEFT  = 2
-    RIGHT = 3
-.endenum
-
-; ---------------------------------------------------------------------------
-
-.enum ROOM_NUMBER
-    R0  = 0
-    R1  = 1
-    R2  = 2
-    R3  = 3
-    R4  = 4
-    R5  = 5
-    R6  = 6
-    R7  = 7
-    R8  = 8
-    R9  = 9
-    R10 = 10
-    R11 = 11
-    R12 = 12
-    R13 = 13
-    ENTRANCE_TITLE = 14
-    R15 = 15
-    COUNT = 16
-.endenum
-
-; ---------------------------------------------------------------------------
-
-.enum PM_OBJECT
-    PLAYER         = 0
-    PHARAOH        = 1
-    MUMMY          = 2
-    WINGED_AVENGER = 3
-    COUNT          = 4
-    ILLEGAL        = $FF
-.endenum
-
-; ---------------------------------------------------------------------------
-
-.enum TILE
-    FULL = 0
-    EMPTY = 1
-    FLOOR_02 = 2
-    FLOOR_03 = 3
-    FLOOR_04 = 4
-    FLOOR_05 = 5
-    FLOOR_06 = 6
-    FLOOR_07 = 7
-    FLOOR_08 = 8
-    FLOOR_09 = 9
-    FLOOR_0a = $A
-    FLOOR_0b = $B
-    FLOOR_0c = $C
-    FLOOR_0d = $D
-    FLOOR_0e = $E
-    FLOOR_0f = $F
-    FLOOR_10 = $10
-    FLOOR_11 = $11
-    FLOOR_12 = $12
-    FLOOR_13 = $13
-    FLOOR_14 = $14
-    FLOOR_15 = $15
-    FLOOR_16 = $16
-    FLOOR_17 = $17
-    FLOOR_18 = $18
-    FLOOR_19 = $19
-    FLOOR_1a = $1A
-    FLOOR_1b = $1B
-    FLOOR_1c = $1C
-    FLOOR_1d = $1D
-    FLOOR_1e = $1E
-    FLOOR_1f = $1F
-    FLOOR_20 = $20
-    FLOOR_21 = $21
-    FLOOR_22 = $22
-    FLOOR_23 = $23
-    FLOOR_24 = $24
-    FLOOR_25 = $25
-    FLOOR_26 = $26
-    FLOOR_27 = $27
-    ROPE = $28
-    WALL_29 = $29
-    WALL_2a = $2A
-    WALL_2b = $2B
-    WALL_2c = $2C
-    WALL_2d = $2D
-    WALL_2e = $2E
-    WALL_2f = $2F
-    WALL_30 = $30
-    WALL_31 = $31
-    WALL_32 = $32
-    WALL_33 = $33
-    WALL_34 = $34
-    WALL_35 = $35
-    WALL_36 = $36
-    WALL_37 = $37
-    WALL_38 = $38
-    WALL_39 = $39
-    WALL_3a = $3A
-    WALL_3b = $3B
-    WALL_3c = $3C
-    WALL_3d = $3D
-    WALL_3e = $3E
-    WALL_3f = $3F
-    WALL_40 = $40
-    WALL_41 = $41
-    WALL_42 = $42
-    WALL_43 = $43
-    WALL_44 = $44
-    WALL_45 = $45
-    WALL_46 = $46
-    WALL_47 = $47
-    WALL_48 = $48
-    WALL_49 = $49
-    WALL_4a = $4A
-    FIELD_0_moveRight = $4B
-    FIELD_1_moveLeft = $4C
-    FIELD_2_static = $4D
-    WALL_4e = $4E
-    WALL_4f = $4F
-    WALL_50 = $50
-    WALL_51 = $51
-    WALL_52 = $52
-    WALL_53 = $53
-    WALL_54 = $54
-    WALL_55 = $55
-    WALL_56 = $56
-    T57 = $57
-    T58 = $58
-    T59 = $59
-    T5a = $5A
-    GATE = $5B
-    KEY_left = $5C
-    KEY_right = $5D
-    TREASURE_left = $5E
-    TREASURE_right = $5F
-    TRAP_0_left = $60
-    TRAP_0_right = $61
-    TRAP_1_left = $62
-    TRAP_1_right = $63
-    TRAP_2_left = $64
-    TRAP_2_right = $65
-    TRAP_3_left = $66
-    TRAP_3_right = $67
-    BULLET_0 = $68
-    BULLET_1 = $69
-    BULLET_2 = $6A
-    BULLET_3 = $6B
-    ELEVATOR_0 = $6C
-    ELEVATOR_2 = $6D
-    ELEVATOR_1 = $6E
-    ELEVATOR_3 = $6F
-    DOOR_0_left = $70
-    DOOR_0_right = $71
-    DOOR_1_left = $72
-    DOOR_1_right = $73
-    DOOR_2_left = $74
-    DOOR_2_right = $75
-    DOOR_3_left = $76
-    DOOR_3_right = $77
-    ROPE_0 = $78
-    ROPE_1 = $79
-    ROPE_2 = $7A
-    ROPE_3 = $7B
-    TRAP_ACTIVE_0_left = $7C
-    TRAP_ACTIVE_0_right = $7D
-    TRAP_ACTIVE_1_left = $7E
-    TRAP_ACTIVE_1_right = $7F
-
-    ACTION_FLAG = $80
-.endenum
-
-; ---------------------------------------------------------------------------
-
-; PROTECTION: Patches for the code
-.enum OPCODE
-    JMP = $4C
-    ADC_abs_Y = $79
-.endenum
-
-; ---------------------------------------------------------------------------
-
-.enum PLAYER_STATE
-    ONGOING   = 0
-    WON_GAME  = $FA
-    INIT      = $FB
-    GAME_LOST = $FF
-.endenum
-
-; ---------------------------------------------------------------------------
-
-; The different sound effects
-.enum SOUND_EFFECT
-    LOST_LIFE           = 0
-    KILLED_PHARAO       = 1
-    KILLED_MUMMY        = 2
-    WINGED_AVENGER_SHOT = 3
-    TREASURE_COLLECTED  = 4
-    KEY_COLLECTED       = 5
-    OPEN_GATE           = 6
-    GAME_END            = 7
-.endenum
-
-; ---------------------------------------------------------------------------
-
-.enum ELEVATOR_STATE
-    START   = 0
-    RESTORE = 1
-    RUNNING = 2
-    OFF     = $FF
-.endenum
-
-; ---------------------------------------------------------------------------
-
-.enum PM_IMAGE_OFFSET
-    STANDING    = $00
-    CLIMBING    = $10
-    RUN_LEFT_0  = $20
-    RUN_LEFT_1  = $30
-    RUN_LEFT_2  = $40
-    RUN_RIGHT_0 = $50
-    RUN_RIGHT_1 = $60
-    RUN_RIGHT_2 = $70
-.endenum
-
-; ---------------------------------------------------------------------------
-
-.enum COLLISION_PLAYER
-    PLAYER_A = $01
-    PLAYER_B = $02
-    PHARAOH  = $04
-    MUMMY    = $08
-.endenum
-
-; ---------------------------------------------------------------------------
-
-.enum COLLISION_PLAYFIELD
-    C0_FLOOR               = $01 ; Floor color
-    C1_WALL                = $02 ; Wall color
-    C2_DOOR_ACCENT         = $04 ; Wall accent color,  doors
-    C3_TRAPS_KEYS_TREASURE = $08 ; used for Traps, Keys and Treasures – flickering
-.endenum
-
-
-
-; ---------------------------------------------------------------------------
-; Page Zero
-; BASIC and Floating Point
-; Used by Pharaoh's Curse for variables
-; ---------------------------------------------------------------------------
-    .zeropage
-    .org $CB
-SCORE:                      .res 2 ; Score in BCD format
-unused_00_CD:               .res 1 ; Erased at launch, never read
-unused_decrement_VBL_CE:    .res 1 ; Decremented during VBL IRQ, never read
-                            .res 5
-XLEVELPTR:                  .res 2 ; Ptr to additional level data ($1E0 bytes after the beginning)
-                            .res 2
-SND_PTR:                    .res 2 ; Ptr to frequency table when playing a sound effect
-vTEMP1:                     .res 1
-vTEMP2:                     .res 1
-vTEMP3:                     .res 1
-ELEVATOR_PTR:               .res 2
-                            .res 5
-MULT_TMP:                   .res 2
-pDEST_PTR:                  .res 2
-sSRC_PTR:                   .res 2
-                            .res 4
-vAudio_AUDF2_base:          .res 1
-vAudio_AUDF3:               .res 1
-vAudio_AUDC2_AUDC3:         .res 1
-vAudio_AUDF2_60Hz_countDown: .res 1
-vAudio_AUDC1:               .res 1
-vWingedAvenger_Hunt_Timer:  .res 1
-DOUBLE_YSPEED_FLAG:         .res 1
-PLAYER_STATE:               .res 1
-SUBPIXEL_X:                 .res 1
-SUBPIXEL_Y:                 .res 1
-vELEVATOR_X:                .res 1
-vELEVATOR_Y:                .res 1
-vAudio_AUDC4:               .res 1
-CURRENT_ROOM:               .res 1
-vTemp_CurrentRoom:          .res 1
-
+.include "Enum.s"
+.include "Vars.s"
 
                 .code
                 .org $0480
@@ -483,6 +112,9 @@ BOOT_INIT:      RTS
 
 ; =============== S U B R O U T I N E =======================================
 
+START_SECTOR := 256
+.global START_SECTOR
+
 .proc LOAD_GAME
                 LDA     #(CODE_END-START+127)/128
                 STA     a:vTEMP1        ; Number of sectors to read
@@ -494,9 +126,9 @@ BOOT_INIT:      RTS
                 STA     DBUFLO          ; DATA BUFFER POINTER (LOW)
                 LDA     #>START
                 STA     DBUFHI          ; DATA BUFFER POINTER (HIGH)
-                LDA     #0
+                LDA     #<START_SECTOR
                 STA     DAUX1           ; Start reading at sector #256
-                LDA     #1
+                LDA     #>START_SECTOR
                 STA     DAUX2           ; COMMAND AUXILLARY BYTES 2
 PROT_LOOP:      JSR     DSKINV          ; DISK INTERFACE
                 LDA     DBUFLO          ; DATA BUFFER POINTER (LOW)
@@ -509,7 +141,7 @@ PROT_LOOP:      JSR     DSKINV          ; DISK INTERFACE
                 DEC     a:vTEMP1
                 BNE     PROT_LOOP
 
-
+.if .defined(COPY_PROTECTION)
 ; Track #5 with the copy protection:
 ; Sector # 94, Track # 5 Sector # 4 / OK /   8.608ms / $1a * 128
 ; Sector # 97, Track # 5 Sector # 7 / OK /  19.512ms / $1a * 128
@@ -554,6 +186,7 @@ PROT_LOOP:      JSR     DSKINV          ; DISK INTERFACE
                 STA     DAUX1           ; COMMAND AUXILLARY BYTES 1
                 JSR     DSKINV          ; DISK INTERFACE
                 BPL     @CRASH          ; if there is no error, crash!
+.endif
 
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse Loading and Protection done, now do initialization
@@ -614,6 +247,7 @@ sPASSWORD:      .BYTE "   " ; Level 0
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse Main Game
 ; ---------------------------------------------------------------------------
+.global START
 .proc START
                 JSR     CLEAR_ALL_PM_GRAPHICS
                 JSR     RESET_CTIA_POKEY
@@ -643,9 +277,10 @@ sPASSWORD:      .BYTE "   " ; Level 0
                 LDA     #>GAME_DISPLIST ; DLI 1 BLANK - DIL_TOP is called
                 STA     SDLSTH          ; SAVE DISPLAY LIST (HIGH)
 
+.if .defined(COPY_PROTECTION)
                 LDA     #OPCODE::ADC_abs_Y
                 STA     PROT_CHECKSUM   ; patched to ADC $500,Y
-
+.endif
                 LDA     #ELEVATOR_STATE::OFF
                 STA     vELEVATOR_Y
                 STA     vELEVATOR_X
@@ -682,8 +317,10 @@ sPASSWORD:      .BYTE "   " ; Level 0
                 STA     SDLSTL          ; SAVE DISPLAY LIST (LOW)
                 LDA     #226
                 STA     PM_YPOS
+.if .defined(COPY_PROTECTION)
                 LDA     #>LOAD_GAME::PROT_LOOP
                 STA     PROT_CHECKSUM+2 ; patched to ADC $500,Y
+.endif
                 LDA     #%00100001      ; Player 0 - 3, playfield 0 - 3, BAK; Overlaps of players have 3rd color
                 STA     GPRIOR          ; GLOBAL PRIORITY CELL
 
@@ -859,6 +496,7 @@ _no_pause_game_:
 @continue_game:
                 LDX     #PM_OBJECT::MUMMY ; 1 player, 1 pharaoh, 1 mummy (the winged revenge is not part of this loop)
 
+.if .defined(COPY_PROTECTION)
 ; PROTECTION: Checksum over checksum code, which checksums the boot code!
                 LDY     #7
                 LDA     #0
@@ -871,6 +509,7 @@ _no_pause_game_:
                 LDA     RANDOM
 PROT_CHECKSUM_C:STA     PROT_PM_GRAPHICS_MSB_1
 PROT_CHECKSUM_CD:
+.endif
 
                 ; Lower volume for channel #4
                 LDA     vAudio_AUDC4
@@ -1241,6 +880,7 @@ _player_dead:
                 LDA     DEATH_ANIM
                 BNE     _player_dieing
 
+.if .defined(COPY_PROTECTION)
 ; PROTECTION: Checksum over the boot code
                 LDA     #0
                 TAY
@@ -1253,6 +893,7 @@ PROT_CHECKSUM_B:ADC     BOOT_SECTOR,Y
                 LDA     RANDOM
                 STA     PM_GRAPHICS_MSB
 :
+.endif
 
                 JMP     _player_check_direction
 ; ---------------------------------------------------------------------------
@@ -1707,6 +1348,7 @@ _player_done:
 
 FIND_NEXT_ROOM:
 
+.if .defined(COPY_PROTECTION)
 ; PROTECTION: Checksum over the boot code! This routine is patched before running it
                 LDA     #$1E
                 LDY     #$3F
@@ -1715,6 +1357,7 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
                 BPL     PROT_CHECKSUM   ; patched to ADC $500,Y
                 PHA
 ; That said: the result is _never_ tested!
+.endif
 
                 LDA     CURRENT_ROOM,X
                 LDY     level_exit_direction,X
@@ -1762,9 +1405,11 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
 @first_game_room:
                 STA     CURRENT_ROOM,X
 
+.if .defined(COPY_PROTECTION)
 ; PROTECTION: Result of the checksum code
                 PLA                     ; Checksum (never checked!)
                 ORA     #0
+.endif
                 RTS
 
 
@@ -1803,7 +1448,9 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
                 STA     level_exit_direction,X
 
                 JSR     CLEAR_PM_GRAPHICS
+.if .defined(COPY_PROTECTION)
                 CLC                     ; CLC is part of the checksum for the copy protection
+.endif
                 JSR     FIND_NEXT_ROOM
 
                 CPX     #PM_OBJECT::PLAYER ; the actual player
@@ -3712,12 +3359,14 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
                 LDA     #2
 @fly_left:      STA     vAVEN_XOffset
 
+.if .defined(COPY_PROTECTION)
 ; PROTECTION: check the checksum routine
                 LDY     START::PROT_CHECKSUM_C+1
                 CPY     #$C3
                 BEQ     @no_x_change
                 LDA     RANDOM
                 STA     PROT_PM_GRAPHICS_MSB_2
+.endif
 
 @no_x_change:   BIT     vWingedAvenger_Hunt_Timer
                 BPL     @inTitle
@@ -3980,12 +3629,18 @@ FONT_TRAP_LSB:  .BYTE <FONT_TRAP_0_left
 BITMASK_4_bits: .BYTE %00001111,%00000111,%00000011,%00000001
 
 ; These 4 blocks contain garbage in the game file, they are erased at launch
-STATUS_LINE:    .BYTE   8,  0,$3A,$44,$34,$33,$20,$20,$A8,  0,$E1,$4B,  8,  0,$3A,$44; 0
-                .BYTE $34,$37,$20,$20,$A8,  0,$EF,$4B,  8,  0,$3A,$44,$34,$38,$20,$20; $10
-                .BYTE $A8,  0,$F2,$4B,  8,  0,$3A,$44; $20
-vTrasuresCollected:.BYTE $35,$30,$20,$20,$A8,  0,  8,$4C,  8,  0,$3A,$44,$35,$31,$20,$20
-save_FONT_1800_5C_KEY:.BYTE $A8,  0,$12,$4C,  8,  0,$50,$4E,$44,$31,$20,$20,$A8,  0,$1C,$4C
-save_FONT_1800_5B_GATE:.BYTE   0,  0,$4D,$44,$59,$20,$20,$20,$A0,  0,$BB,$4C,  0,  0,$48,$49
+STATUS_LINE:
+				.BYTE $08,$00,$3A,$44,$34,$33,$20,$20
+				.BYTE $A8,$00,$E1,$4B,$08,$00,$3A,$44
+				.BYTE $34,$37,$20,$20,$A8,$00,$EF,$4B
+				.BYTE $08,$00,$3A,$44,$34,$38,$20,$20
+				.BYTE $A8,$00,$F2,$4B,$08,$00,$3A,$44
+vTrasuresCollected:
+				.BYTE $35,$30,$20,$20,$A8,$00,$08,$4C,$08,$00,$3A,$44,$35,$31,$20,$20
+save_FONT_1800_5C_KEY:
+				.BYTE $A8,$00,$12,$4C,$08,$00,$50,$4E,$44,$31,$20,$20,$A8,$00,$1C,$4C
+save_FONT_1800_5B_GATE:
+				.BYTE $00,$00,$4D,$44,$59,$20,$20,$20,$A0,$00,$BB,$4C,$00,$00,$48,$49
 
 level:          .BYTE 0
 vPasswordIndex: .BYTE 0
@@ -4041,6 +3696,7 @@ vAudio_AUDF1:   .BYTE 0
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse end of the application, followed by garbage data
 ; ---------------------------------------------------------------------------
+.global CODE_END
 CODE_END:       .BYTE $20,$A3,$40,$20,$5D,$05,$A9,$FF,$85,$F5,$4C,$BE,$05,$55,$00,$00,$53,$45,$43,$54,$45,$52,$A0,$00,$90,$00,$00,$00,$54,$45,$4E,$54,$20,$20,$A8,$00,$F2,$4C,$00,$00,$4D,$50,$20,$3A,$4E,$45,$58,$54,$9B,$3B,$3A,$54,$31,$36,$20,$4C,$44,$41,$20,$41,$4C,$21,$20,$43,$4C
                 .BYTE $43,$21,$20,$41,$44,$43,$20,$23,$38,$21,$20,$53,$54,$41,$20,$41,$4C,$9B,$3B,$20,$4A,$4D,$50,$20,$3A,$54,$31,$32,$9B,$9B,$9B,$9B,$3A,$54,$32,$30,$9B,$20,$43,$4D,$50,$20,$23,$33,$2A,$31,$36,$2B,$31,$9B,$20,$42,$43,$43,$20,$3A,$54,$33,$30,$9B,$20,$4C,$44,$41,$20
                 .BYTE $23,$32,$35,$36,$2D,$31,$36,$9B,$20,$53,$54,$41,$20,$54,$59,$C8,$7D,$52,$50,$44,$49,$52,$2C,$58,$9B,$20,$4C,$44,$41,$20,$23,$33,$2A,$31,$36,$9B,$3A,$54,$33,$30,$20,$53,$54,$41,$20,$54,$52,$41,$50,$2C,$58,$9B,$9B,$20,$3B,$20,$20,$20,$A0,$D7,$D2,$C9,$D4,$C5,$A0

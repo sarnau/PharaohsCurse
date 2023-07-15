@@ -5,6 +5,7 @@ SRCDIR        = ./Source
 all:
 	mkdir -p $(OBJDIR)/
 	$(BIN) -C $(SRCDIR)/PharaohsCurse.cfg $(SRCDIR)/PharaohsCurse.s --start-addr 0x0480 -Ln $(OBJDIR)/object.vs -o $(OBJDIR)/object.prg
+	./build_atr.py
 
 clean:
 	rm -rf $(OBJDIR)/
