@@ -6,6 +6,18 @@
 ;.assert * = $1300, error, "Player Missle memory not at $1300"
 	.org $1300
 
+.if FILL_UNUSED_MEM
+PM_GRAPHICS_MISSLES:
+	.res 256
+PM_GRAPHICS_0_PLAYER:
+	.res 256
+PM_GRAPHICS_1_PLAYER:
+	.res 256
+PM_GRAPHICS_2_PHARAO:
+	.res 256
+PM_GRAPHICS_3_MUMMY:
+	.res 256
+.else
 PM_GRAPHICS_MISSLES:
     .byte  $84, $B1, $90, $29, $F8, $F0, $38, $4A, $4A, $4A, $85, $85, $C8, $B1, $90, $C5
     .byte  $80, $F0, $14, $18, $A5, $84, $65, $85, $69, $01, $65, $90, $85, $90, $A5, $91
@@ -91,3 +103,4 @@ PM_GRAPHICS_3_MUMMY:
     .byte  $60, $A2, $00, $C8, $B1, $8E, $91, $86, $C9, $9B, $F0, $F1, $C9, $00, $F0, $E9
     .byte  $C9, $5B, $90, $03, $4C, $F2, $57, $C9, $30, $90, $F9, $E8, $E0, $04, $90, $E3
     .byte  $B0, $D7, $38, $60, $A9, $9B, $91, $86, $A9, $3A, $18, $60, $4C, $C7, $2A, $A9
+.endif

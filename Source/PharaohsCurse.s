@@ -27,13 +27,16 @@
 
 ; WARNING: Turn it off, and it generates garbage code, because the doesn't 'get it'
 ; that there is less code. The addresses are unchanged, like the code is still in place!
-.define COPY_PROTECTION 1 ; If defined, the copy protection is enabled.
-.define PATCH_PROTECTION 1 ; leave the protection in, but patch it out
+COPY_PROTECTION = 1 ; If defined, the copy protection is enabled.
+;PATCH_PROTECTION = 1 ; leave the protection in, but patch it out
+.define FILL_UNUSED_MEM 0 ; fill unused memory with $00
 
-.if COPY_PROTECTION
+.ifdef COPY_PROTECTION
+.global COPY_PROTECTION
 .out "- Copy protection enabled"
 
-.if PATCH_PROTECTION
+.ifdef PATCH_PROTECTION
+.global PATCH_PROTECTION
 .out "- Copy protection patched"
 .endif
 .endif
@@ -140,7 +143,7 @@ START_SECTOR := 256
                 STA     DAUX1           ; Start reading at sector #256
                 LDA     #>START_SECTOR
                 STA     DAUX2           ; COMMAND AUXILLARY BYTES 2
-.if COPY_PROTECTION
+.ifdef COPY_PROTECTION
 PROT_ADDR:
 .endif
 @loop:          JSR     DSKINV          ; DISK INTERFACE
@@ -159,7 +162,7 @@ PROT_ADDR:
 ; There are several routines in the main game calculating a checksum
 ; over the protection.
 ; ---------------------------------------------------------------------------
-.if COPY_PROTECTION
+.ifdef COPY_PROTECTION
 ; Track #5 with the copy protection:
 ; Sector # 94, Track # 5 Sector # 4 / OK /   8.608ms / $1a * 128
 ; Sector # 97, Track # 5 Sector # 7 / OK /  19.512ms / $1a * 128
@@ -191,7 +194,7 @@ PROT_ADDR:
                 DEC     a:vTEMP1
                 BNE     :-
 
-.if PATCH_PROTECTION
+.ifdef PATCH_PROTECTION
 				LDA     #$14			; has the same checksum as the following commands
 				CMP     #$64			; which will not trigger any checksum code.
 .else
@@ -206,7 +209,7 @@ PROT_ADDR:
 @checkOK:       LDA     #0
                 STA     SOUNDR          ; NOISY I/O FLAG. (ZERO IS QUIET)
 
-.if PATCH_PROTECTION
+.ifdef PATCH_PROTECTION
 				BIT     $E7				; has the same checksum as the following command. And reading sector #0 will return an error.
 .else
                 LDA     #98             ; Sector 98 has to have a CRC error
@@ -307,7 +310,7 @@ sPASSWORD_l123: .byte "OPS" ; Level 3: SYNISTOPS
                 LDA     #>GAME_DISPLIST ; DLI 1 BLANK - DIL_TOP is called
                 STA     SDLSTH          ; SAVE DISPLAY LIST (HIGH)
 
-.if COPY_PROTECTION
+.ifdef COPY_PROTECTION
                 LDA     #OPCODE::ADC_abs_Y
                 STA     PROT_CHECKSUM   ; patched to ADC $500,Y
 .endif
@@ -347,7 +350,7 @@ sPASSWORD_l123: .byte "OPS" ; Level 3: SYNISTOPS
                 STA     SDLSTL          ; SAVE DISPLAY LIST (LOW)
                 LDA     #226
                 STA     PM_YPOS
-.if COPY_PROTECTION
+.ifdef COPY_PROTECTION
                 LDA     #>LOAD_GAME::PROT_ADDR
                 STA     PROT_CHECKSUM+2 ; patched to ADC $500,Y
 .endif
@@ -526,7 +529,7 @@ _no_pause_game_:
 @continue_game:
                 LDX     #PM_OBJECT::MUMMY ; 1 player, 1 pharaoh, 1 mummy (the winged revenge is not part of this loop)
 
-.if COPY_PROTECTION
+.ifdef COPY_PROTECTION
 ; PROTECTION: Checksum over checksum code, which checksums the boot code!
                 LDY     #7
                 LDA     #0
@@ -910,7 +913,7 @@ _player_dead:
                 LDA     DEATH_ANIM
                 BNE     _player_dieing
 
-.if COPY_PROTECTION
+.ifdef COPY_PROTECTION
 ; PROTECTION: Checksum over the boot code
                 LDA     #0
                 TAY
@@ -1378,7 +1381,7 @@ _player_done:
 
 FIND_NEXT_ROOM:
 
-.if COPY_PROTECTION
+.ifdef COPY_PROTECTION
 ; PROTECTION: Checksum over the boot code! This routine is patched before running it
                 LDA     #$1E
                 LDY     #$3F
@@ -1435,7 +1438,7 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
 @first_game_room:
                 STA     CURRENT_ROOM,X
 
-.if COPY_PROTECTION
+.ifdef COPY_PROTECTION
 ; PROTECTION: Result of the checksum code
                 PLA                     ; Checksum (never checked!)
                 ORA     #0
@@ -1478,7 +1481,7 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
                 STA     level_exit_direction,X
 
                 JSR     CLEAR_PM_GRAPHICS
-.if COPY_PROTECTION
+.ifdef COPY_PROTECTION
                 CLC                     ; CLC is part of the checksum for the copy protection
 .endif
                 JSR     FIND_NEXT_ROOM
@@ -1947,7 +1950,11 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
 .endproc
 
 ; ---------------------------------------------------------------------------
+.if FILL_UNUSED_MEM
+				.byte $00
+.else
                 .byte $A9 ; garbage data to align the following data blocks
+.endif
 
 .include "Graphics_PlayerMissle.s"
 .include "PlayerMissle_Memory.s"
@@ -2029,7 +2036,11 @@ DLI_select_room:
 ; ---------------------------------------------------------------------------
 ; Pharaoh's Curse Variables
 ; ---------------------------------------------------------------------------
+.if FILL_UNUSED_MEM
+                .byte $00,$00,$00
+.else
                 .byte $FF,$FF,$FF ; unused
+.endif
 vAddRandomDeathNoiseFlag:
 				.byte $FF
 level_exit_direction:
@@ -2127,6 +2138,9 @@ vPlayer_counter_b:.byte  $FF, $FF, $FF, $FF
 ; ---------------------------------------------------------------------------
 ; Garbage (memory alignment for the level data)
 ; ---------------------------------------------------------------------------
+.if FILL_UNUSED_MEM
+                .res 232
+.else
                 .byte  $8E, $6B, $65, $A2, $20, $8E, $87, $04
                 .byte  $8E, $88, $04, $A2, $6E, $8E, $89, $04
                 .byte  $A2, $6F, $8E, $8A, $04, $A2, $46, $A0
@@ -2156,6 +2170,7 @@ vPlayer_counter_b:.byte  $FF, $FF, $FF, $FF
                 .byte  $05, $A2, $82, $86, $8C, $A2, $5F, $86
                 .byte  $8D, $A9, $00, $20, $DB, $50, $B0, $3C
                 .byte  $A9, $00, $20, $B3, $50, $B0, $35, $A2
+.endif
 
 .include "Levels.s"
 .include "Font_Title.s"
@@ -3390,7 +3405,7 @@ FONT_TRAP_LSB:  .byte <FONT_TRAP_0_left
                 LDA     #2
 @fly_left:      STA     vAVEN_XOffset
 
-.if COPY_PROTECTION
+.ifdef COPY_PROTECTION
 ; PROTECTION: check the checksum routine
                 LDY     START::PROT_CHECKSUM_C+1
                 CPY     #$C3
@@ -3660,6 +3675,16 @@ FONT_TRAP_LSB:  .byte <FONT_TRAP_0_left
 BITMASK_4_bits: .byte %00001111,%00000111,%00000011,%00000001
 
 ; These 4 blocks contain garbage in the game file, they are erased at launch
+.if FILL_UNUSED_MEM
+STATUS_LINE:
+				.res 40
+vTrasuresCollected:
+				.res 16
+save_FONT_1800_5C_KEY:
+				.res 16
+save_FONT_1800_5B_GATE:
+				.res 16
+.else
 STATUS_LINE:
 				.byte $08,$00,$3A,$44,$34,$33,$20,$20
 				.byte $A8,$00,$E1,$4B,$08,$00,$3A,$44
@@ -3672,6 +3697,7 @@ save_FONT_1800_5C_KEY:
 				.byte $A8,$00,$12,$4C,$08,$00,$50,$4E,$44,$31,$20,$20,$A8,$00,$1C,$4C
 save_FONT_1800_5B_GATE:
 				.byte $00,$00,$4D,$44,$59,$20,$20,$20,$A0,$00,$BB,$4C,$00,$00,$48,$49
+.endif
 
 level:          .byte 0
 vPasswordIndex: .byte 0
@@ -3728,8 +3754,12 @@ vAudio_AUDF1:   .byte 0
 ; Pharaoh's Curse end of the application, followed by garbage data
 ; ---------------------------------------------------------------------------
 .global CODE_END
-CODE_END:       .byte $20,$A3,$40,$20,$5D,$05,$A9,$FF,$85,$F5,$4C,$BE,$05,$55,$00,$00,$53,$45,$43,$54,$45,$52,$A0,$00,$90,$00,$00,$00,$54,$45,$4E,$54,$20,$20,$A8,$00,$F2,$4C,$00,$00,$4D,$50,$20,$3A,$4E,$45,$58,$54,$9B,$3B,$3A,$54,$31,$36,$20,$4C,$44,$41,$20,$41,$4C,$21,$20,$43,$4C
+CODE_END:
+.if FILL_UNUSED_MEM
+.else
+		        .byte $20,$A3,$40,$20,$5D,$05,$A9,$FF,$85,$F5,$4C,$BE,$05,$55,$00,$00,$53,$45,$43,$54,$45,$52,$A0,$00,$90,$00,$00,$00,$54,$45,$4E,$54,$20,$20,$A8,$00,$F2,$4C,$00,$00,$4D,$50,$20,$3A,$4E,$45,$58,$54,$9B,$3B,$3A,$54,$31,$36,$20,$4C,$44,$41,$20,$41,$4C,$21,$20,$43,$4C
                 .byte $43,$21,$20,$41,$44,$43,$20,$23,$38,$21,$20,$53,$54,$41,$20,$41,$4C,$9B,$3B,$20,$4A,$4D,$50,$20,$3A,$54,$31,$32,$9B,$9B,$9B,$9B,$3A,$54,$32,$30,$9B,$20,$43,$4D,$50,$20,$23,$33,$2A,$31,$36,$2B,$31,$9B,$20,$42,$43,$43,$20,$3A,$54,$33,$30,$9B,$20,$4C,$44,$41,$20
                 .byte $23,$32,$35,$36,$2D,$31,$36,$9B,$20,$53,$54,$41,$20,$54,$59,$C8,$7D,$52,$50,$44,$49,$52,$2C,$58,$9B,$20,$4C,$44,$41,$20,$23,$33,$2A,$31,$36,$9B,$3A,$54,$33,$30,$20,$53,$54,$41,$20,$54,$52,$41,$50,$2C,$58,$9B,$9B,$20,$3B,$20,$20,$20,$A0,$D7,$D2,$C9,$D4,$C5,$A0
                 .byte $9B,$9B,$20,$4C,$44,$41,$20,$23,$4C
+.endif
                 .END
