@@ -9,10 +9,15 @@ SECTORS_PER_TRACK = 18
 TRACK_COUNT = 40
 DISK_SIZE = TRACK_COUNT * SECTORS_PER_TRACK * SECTOR_SIZE
 
-data = bytearray(open('./Objects/object.prg','rb').read())
+objectCode = sys.argv[1]
+objectSymbols = sys.argv[2]
+outputFile = sys.argv[3]
+originalFile = sys.argv[4]
+
+data = bytearray(open(objectCode,'rb').read())
 
 labels = {}
-for l in open('./Objects/object.vs').readlines():
+for l in open(objectSymbols).readlines():
 	_,adr,label = l.strip().split(' ')
 	adr = int(adr,16)
 	labels[label] = adr
@@ -20,7 +25,7 @@ for l in open('./Objects/object.vs').readlines():
 
 # if copy protection is enabled, just verify that the code is 100% identical
 if '.COPY_PROTECTION' in labels and not '.PATCH_PROTECTION' in labels:
-	os.system('cmp ./Objects/object.prg ./Pharaohs_Curse.bin')
+	os.system('cmp %s %s' % (objectCode,originalFile))
 else:
 	print('- no compare')
 
@@ -35,4 +40,4 @@ mainOffset = labels['.START']-labels['.__CODE_LOAD__']
 for i in range(0,labels['.__CODE_SIZE__']-mainOffset):
 	ddata[(codeStartSector - 1) * SECTOR_SIZE + i] = data[i+mainOffset]
 
-open('./Objects/PC.atr','wb').write(dheader+ddata)
+open(outputFile,'wb').write(dheader+ddata)

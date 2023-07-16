@@ -25,9 +25,9 @@
 ; $4cf2 - $4dbe:  ... unused garbage data ...
 ; ---------------------------------------------------------------------------
 
-COPY_PROTECTION = 1 ; If defined, the copy protection is enabled.
+;COPY_PROTECTION = 1 ; If defined, the copy protection is enabled.
 PATCH_PROTECTION = 1 ; leave the protection in, but patch it out
-.define FILL_UNUSED_MEM 0 ; fill unused memory with $00
+.define FILL_UNUSED_MEM 1 ; fill unused memory with $00
 
 .ifdef COPY_PROTECTION
 .global COPY_PROTECTION
@@ -356,9 +356,9 @@ sPASSWORD_l123: .byte "OPS" ; Level 3: SYNISTOPS
                 STA     GPRIOR          ; GLOBAL PRIORITY CELL
 
                 LDY     #15
-:               LDA     #1
+:               LDA     #1				; reset all treasures (none has been found)
                 STA     vTrasuresCollected,Y
-                LDA     #%10001000
+                LDA     #%10001000		; reset the gates
                 STA     save_FONT_1800_5B_GATE,Y
                 DEY
                 BPL     :-
@@ -443,13 +443,13 @@ _no_pause_game_:
 ; if not moving, be a target for the winged avenger
                 LDA     vJoystickInput
                 CMP     #%11111111      ; Joystick action?
-                BNE     @wa_noTarget    ; => yes
+                BNE     @wa_resetTarget ; => yes
 
                 BIT     vWingedAvenger_Hunt_Timer
                 BMI     @wa_isTarget
                 INC     vWingedAvenger_Hunt_Timer
                 BNE     @wa_isTarget
-@wa_noTarget:   LDA     #0
+@wa_resetTarget:LDA     #0
                 STA     vWingedAvenger_Hunt_Timer
 @wa_isTarget:
 
@@ -481,7 +481,7 @@ _no_pause_game_:
                 LDY     #SOUND_EFFECT::OPEN_GATE
                 JSR     SOUND_PLAY_on_CH4
                 JMP     @gateNotOpening
-@gateOpeningSnd:        TYA
+@gateOpeningSnd:TYA
                 ASL     A
                 STA     AUDF4
                 LDA     #AUDC_POLYS_5|6
@@ -489,7 +489,7 @@ _no_pause_game_:
 @gateNotOpening:
 
                 LDA     CH              ; GLOBAL VARIABLE FOR KEYBOARD
-                CMP     #KEY_9|KEY_SHIFT|KEY_CTRL
+                CMP     #KEY_9|KEY_SHIFT|KEY_CTRL ; cheat: successfully finish the level!
                 BEQ     @game_end_reached ; => yes
 
                 LDA     player_lives
