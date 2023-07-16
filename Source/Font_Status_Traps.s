@@ -4,7 +4,7 @@
 	.res $1C00 - * ; we need to align the PC to this address
 .assert * = $1C00, error, "Status Line Font not at $1C00"
 
-FONT_BASE_1C00:
+FONT_STATUS:
     .byte %00111100
     .byte %01111110
     .byte %01100110
@@ -95,7 +95,7 @@ FONT_BASE_1C00:
     .byte %01100110
     .byte %00111100
 
-FONT_BASE_1C00_CROWN:
+FONT_STATUS_CROWN:
     .byte %00000000
     .byte %00000000
     .byte %01011010
@@ -104,7 +104,7 @@ FONT_BASE_1C00_CROWN:
     .byte %01111110
     .byte %00111100
     .byte %01111110
-FONT_BASE_1C00_PLAYER:
+FONT_STATUS_PLAYER:
     .byte %00011100
     .byte %00011100
     .byte %00001000
@@ -123,7 +123,7 @@ FONT_BASE_1C00_PLAYER:
     .byte %00111000
     .byte %00101000
 
-FONT_BASE_1C00_TREASURE___:
+FONT_STATUS_TREASURE___:
     .byte %00000000
     .byte %00000000
     .byte %00000000
@@ -132,7 +132,7 @@ FONT_BASE_1C00_TREASURE___:
     .byte %00000000
     .byte %00000000
     .byte %00000000
-FONT_BASE_1C00_TREASURE__X:
+FONT_STATUS_TREASURE__X:
     .byte %00000000
     .byte %00000000
     .byte %00100000
@@ -141,7 +141,7 @@ FONT_BASE_1C00_TREASURE__X:
     .byte %00100000
     .byte %00000000
     .byte %00000000
-FONT_BASE_1C00_TREASURE_X_:
+FONT_STATUS_TREASURE_X_:
     .byte %00000000
     .byte %00000000
     .byte %00000010
@@ -150,7 +150,7 @@ FONT_BASE_1C00_TREASURE_X_:
     .byte %00000010
     .byte %00000000
     .byte %00000000
-FONT_BASE_1C00_TREASURE_XX:
+FONT_STATUS_TREASURE_XX:
     .byte %00000000
     .byte %00000000
     .byte %00100010
@@ -160,7 +160,7 @@ FONT_BASE_1C00_TREASURE_XX:
     .byte %00000000
     .byte %00000000
 
-FONT_BASE_1C00_GAMEOVER:
+FONT_STATUS_GAMEOVER:
     .byte %01111101
     .byte %01100101
     .byte %01100001
@@ -224,7 +224,7 @@ FONT_BASE_1C00_GAMEOVER:
     .byte %11000000
     .byte %00000000
 
-FONT_BASE_1C00_18_WINGED_AVENGER:
+FONT_STATUS_18_WINGED_AVENGER:
     .byte %00000000
     .byte %00000000
     .byte %00000000
@@ -270,7 +270,7 @@ FONT_BASE_1C00_18_WINGED_AVENGER:
     .byte %00000000
     .byte %00000000
 
-FONT_BASE_1C00_ARROW_RIGHT:
+FONT_STATUS_ARROW_RIGHT:
     .byte %00000000
     .byte %00100000
     .byte %10010000
@@ -280,7 +280,7 @@ FONT_BASE_1C00_ARROW_RIGHT:
     .byte %10010000
     .byte %00100000
 
-FONT_BASE_1C00_ARROW_LEFT:
+FONT_STATUS_ARROW_LEFT:
     .byte %00000000
     .byte %00000100
     .byte %00001001
@@ -299,7 +299,7 @@ FONT_BASE_1C00_ARROW_LEFT:
     .byte %00100010
     .byte %00000000
 
-FONT_TRAP_0_ANIM:
+FONT_STATUS_TRAP_0_ANIM:
     .byte %00000000
     .byte %00000000
     .byte %00000000
@@ -372,7 +372,7 @@ FONT_TRAP_0_ANIM:
     .byte %11000001
     .byte %01010101
 
-FONT_TRAP_1_ANIM:
+FONT_STATUS_TRAP_1_ANIM:
     .byte %00000000
     .byte %00000000
     .byte %00000000
@@ -445,7 +445,7 @@ FONT_TRAP_1_ANIM:
     .byte %11000001
     .byte %01010101
 
-FONT_TRAP_2_ANIM:
+FONT_STATUS_TRAP_2_ANIM:
     .byte %00000000
     .byte %00000000
     .byte %00000000
@@ -518,7 +518,7 @@ FONT_TRAP_2_ANIM:
     .byte %11111100
     .byte %01010101
 
-FONT_TRAP_3_ANIM:
+FONT_STATUS_TRAP_3_ANIM:
     .byte %00000000
     .byte %00000000
     .byte %00000000

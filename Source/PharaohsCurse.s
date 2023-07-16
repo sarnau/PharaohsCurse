@@ -321,7 +321,7 @@ sPASSWORD_l123: .byte "OPS" ; Level 3: SYNISTOPS
                 STA     vKeyCollectedWhenPositive
                 STA     CH              ; GLOBAL VARIABLE FOR KEYBOARD
 
-                LDA     #>FONT_BASE_1C00
+                LDA     #>FONT_STATUS
                 STA     CHBAS           ; CHBAS REGISTER (SHADOW)
 
                 LDA     #>LEVEL_MAP_TITLE
@@ -1368,7 +1368,7 @@ _player_done:
 :               JSR     CLEAR_PM_GRAPHICS_BLOCK
                 INC     pDEST_PTR+1
                 LDA     pDEST_PTR+1
-                CMP     #>FONT_BASE_1800
+                CMP     #>FONT_MAIN
                 BNE     :-
                 RTS
 .endproc
@@ -1874,7 +1874,7 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
                 ASL     A
                 ROL     MULT_TMP+1
                 STA     MULT_TMP
-                LDA     #>FONT_BASE_1800
+                LDA     #>FONT_MAIN
                 CLC
                 ADC     MULT_TMP+1
                 STA     MULT_TMP+1
@@ -1895,7 +1895,7 @@ PROT_CHECKSUM:  STA     LEVEL_MAP_8+$100,Y ; patched to ADC $500,Y
                 LDX     vTEMP1
                 BPL     @remove_bullet  ; otherwise remove the bullet
 :               ORA     #%00000100      ; add the bullet to the bitmap
-@loopj:         STA     FONT_BASE_1800_68_BULLET,X ; create bullet character
+@loopj:         STA     FONT_MAIN_68_BULLET,X ; create bullet character
                 DEX
                 DEY
                 BPL     @loop2          ; load current bitmap from character
@@ -1994,7 +1994,7 @@ LEVEL_MAP_ADR:
 ; This is the DIL for the title screen, it switches in the lower third to the level font
 .proc DLI_TITLE_ROOM
                 PHA
-                LDA     #>FONT_BASE_TITLE
+                LDA     #>FONT_TITLE
                 STA     CHBASE          ; Character base address
                 LDA     COLOR2          ; COLOR 2
                 STA     COLPF2          ; Color and luminance of playfield 2
@@ -2023,7 +2023,7 @@ DLI_select_room:
 ; This is the DIL for all levels to select the level font
 .proc DLI_OTHER_ROOM
                 PHA
-                LDA     #>FONT_BASE_1800
+                LDA     #>FONT_MAIN
                 STA     CHBASE          ; Character base address
                 LDA     COLOR2          ; COLOR 2
                 STA     COLPF2          ; Color and luminance of playfield 2
@@ -2080,7 +2080,7 @@ vGateOpenPosition:.byte $FF
 PLAYER_IMG_MSB: .byte >PM_GRAPHICS_1100_PLAYER
                 .byte >PM_GRAPHICS_1200_PHARAOH
                 .byte >PM_GRAPHICS_1280_MUMMY
-                .byte >FONT_BASE_1C00_18_WINGED_AVENGER
+                .byte >FONT_STATUS_18_WINGED_AVENGER
 
 PM_GRAPHICS_MSB:.byte >PM_GRAPHICS_0_PLAYER
 PROT_PM_GRAPHICS_MSB_1:.byte >PM_GRAPHICS_2_PHARAO
@@ -2104,10 +2104,10 @@ SND_TABLE_LSB:  .byte <SND_EFFECT_LOST_LIFE
                 .byte <SND_EFFECT_OPEN_GATE
                 .byte <SND_EFFECT_GAME_END
 
-FONT_TRAP_ANIM_LSB:.byte <FONT_TRAP_0_ANIM
-                .byte <FONT_TRAP_1_ANIM
-                .byte <FONT_TRAP_2_ANIM
-                .byte <FONT_TRAP_3_ANIM
+FONT_STATUS_TRAP_ANIM_LSB:.byte <FONT_STATUS_TRAP_0_ANIM
+                .byte <FONT_STATUS_TRAP_1_ANIM
+                .byte <FONT_STATUS_TRAP_2_ANIM
+                .byte <FONT_STATUS_TRAP_3_ANIM
                 
 CROWN_ARROW_DURATION:.byte  $EA, $FF
 CROWN_ARROW_XPOS:.byte  $FF, $FF
@@ -2118,8 +2118,8 @@ CROWN_ARROW_COUNTER:.byte 0,0
 CROWN_ARROW_SOUND:.byte 0,0
 ARROW_XOFFSET:  .byte 0,0
                 .byte 0
-CROWN_ARROW_GRAPHICS_LSB:.byte <FONT_BASE_1C00_CROWN
-                .byte <FONT_BASE_1C00_ARROW_RIGHT
+CROWN_ARROW_GRAPHICS_LSB:.byte <FONT_STATUS_CROWN
+                .byte <FONT_STATUS_ARROW_RIGHT
 cARROW_XOFFSET_TAB:.byte 256-1
                 .byte 1
 s_LEVEL_0_:     .byte " LEVEL 0 "
@@ -2262,7 +2262,7 @@ vPlayer_counter_b:.byte  $FF, $FF, $FF, $FF
                 STA     MULT_TMP
                 LDA     MULT_TMP+1
                 CLC
-                ADC     #>FONT_BASE_1800
+                ADC     #>FONT_MAIN
                 STA     MULT_TMP+1
                 LDY     SUBPIXEL_Y
                 LDA     (MULT_TMP),Y
@@ -3145,7 +3145,7 @@ FONT_TRAP_LSB:  .byte <FONT_TRAP_0_left
                 TAX
                 LDY     #0
 :               LDA     FONT_ROPE_ANIM_0,X
-                STA     FONT_BASE_1800_28_ROPE,Y
+                STA     FONT_MAIN_28_ROPE,Y
                 INX
                 INY
                 CPY     #8
@@ -3231,7 +3231,7 @@ FONT_TRAP_LSB:  .byte <FONT_TRAP_0_left
                 STA     TRAP_ANIM_STEP,X
                 LDA     RANDOM          ; Pick a random trap animation
                 AND     #$C0
-                STA     FONT_TRAP_ANIM_LSB,X
+                STA     FONT_STATUS_TRAP_ANIM_LSB,X
 
 @trap_anim_next_:
                 JMP     @trap_anim_next
@@ -3263,9 +3263,9 @@ FONT_TRAP_LSB:  .byte <FONT_TRAP_0_left
 
                 LDA     #0
                 CLC
-                ADC     FONT_TRAP_ANIM_LSB,X
+                ADC     FONT_STATUS_TRAP_ANIM_LSB,X
                 PHA
-                LDA     #>FONT_TRAP_0_ANIM
+                LDA     #>FONT_STATUS_TRAP_0_ANIM
                 ADC     #0
                 STA     sSRC_PTR+1
                 PLA
@@ -3475,7 +3475,7 @@ FONT_TRAP_LSB:  .byte <FONT_TRAP_0_left
                 STA     pDEST_PTR+1
 
                 LDY     #15
-@loop:          LDA     FONT_BASE_1C00_18_WINGED_AVENGER,X
+@loop:          LDA     FONT_STATUS_18_WINGED_AVENGER,X
                 BIT     vTEMP1
                 BMI     :+              ; PM2 and PM3 are defined by the character
                 ASL     A
@@ -3639,10 +3639,10 @@ FONT_TRAP_LSB:  .byte <FONT_TRAP_0_left
 
 @select:        LDA     CROWN_ARROW_type,X
                 BEQ     :+              ; => crown
-                LDA     #<(FONT_BASE_1C00_ARROW_LEFT-FONT_BASE_1C00_ARROW_RIGHT)
+                LDA     #<(FONT_STATUS_ARROW_LEFT-FONT_STATUS_ARROW_RIGHT)
                 LDY     ARROW_XOFFSET,X
                 BMI     :+
-                LDA     #<(FONT_BASE_1C00_ARROW_RIGHT-FONT_BASE_1C00_ARROW_RIGHT)
+                LDA     #<(FONT_STATUS_ARROW_RIGHT-FONT_STATUS_ARROW_RIGHT)
 :
                 LDY     CROWN_ARROW_type,X
 @newOne:        CLC
@@ -3650,7 +3650,7 @@ FONT_TRAP_LSB:  .byte <FONT_TRAP_0_left
                 STA     sSRC_PTR
                 LDA     PM_GRAPHICS_MSB,X
                 STA     pDEST_PTR+1
-                LDA     #>FONT_BASE_1C00
+                LDA     #>FONT_STATUS
                 STA     sSRC_PTR+1
                 LDA     CROWN_ARROW_LSB,X
                 STA     pDEST_PTR

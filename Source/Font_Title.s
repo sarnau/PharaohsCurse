@@ -4,7 +4,7 @@
 	.res $4000 - * ; we need to align the PC to this address
 .assert * = $4000, error, "Title font not at $4000"
 
-FONT_BASE_TITLE:
+FONT_TITLE:
     .byte %00000000
     .byte %00000000
     .byte %00000000

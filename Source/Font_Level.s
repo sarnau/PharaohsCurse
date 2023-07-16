@@ -4,7 +4,7 @@
 	.res $1800 - * ; we need to align the PC to this address
 .assert * = $1800, error, "Main Font not at $1800"
 
-FONT_BASE_1800:
+FONT_MAIN:
     .byte %00000000
     .byte %00000000
     .byte %00000000
@@ -365,7 +365,7 @@ FONT_BASE_1800:
     .byte %01010101
     .byte %01010101
 
-FONT_BASE_1800_28_ROPE:
+FONT_MAIN_28_ROPE:
     .byte %00000100
     .byte %00000001
     .byte %00000100
@@ -955,7 +955,7 @@ FONT_TRAP_3_right:
     .byte %01010101
     .byte %01010101
 
-FONT_BASE_1800_68_BULLET:
+FONT_MAIN_68_BULLET:
     .byte %00000000
     .byte %00000000
     .byte %00000000
